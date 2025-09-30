@@ -1,0 +1,62 @@
+name: hotel2
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    ports:
+      - "18832:1883"
+    networks:
+      - hotel2
+      - iot-net
+
+  simulator:
+    build: ./simulator
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      HOTEL_ID: HTL-Beta
+      ROOM_NUMBER: 202
+    ports:
+      - "5002:5000"
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel2
+
+  mqtt-to-kafka:
+    build: ./MQTT
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      MQTT_TOPIC: sensors/#|actuators/#
+      MQTT_PUB_TOPIC_PREFIX: actuators/
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: mqtt_messages
+      KAFKA_ACTIONS_TOPIC: executed_actions
+      SITE_ID: hotel2
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel2
+      - iot-net
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: node-red-hotel2
+    ports:
+      - "1882:1880"
+    environment:
+      TZ: Europe/Dublin
+    volumes:
+      - ./node-red-data:/data
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel2
+
+networks:
+  iot-net:
+    external: true
+  hotel2:
+    driver: bridge
