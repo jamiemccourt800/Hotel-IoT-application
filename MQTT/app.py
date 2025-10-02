@@ -12,10 +12,27 @@ MQTT_SUB_TOPICS_RAW = os.getenv("MQTT_TOPIC", "sensors/#")  # can be comma/pipe/
 MQTT_PUB_TOPIC_PREFIX = os.getenv("MQTT_PUB_TOPIC_PREFIX", "actuators/")  # where to forward actuator commands if needed
 SITE_ID = os.getenv("SITE_ID", "unknown-site")
 
+# Fields
+SENSOR_FIELDS = os.getenv("SENSOR_FIELDS", "value,Value,status,Status,temperature")  # comma-separated list of fields to check for sensor values
+
 # Kafka settings
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "mqtt_messages")
 KAFKA_ACTIONS_TOPIC = os.getenv("KAFKA_ACTIONS_TOPIC", "executed_actions")
+
+# Tolerances Settings
+DEFAULT_TOLERANCE_PERCENT = float(os.getenv("DEFAULT_TOLERANCE_PERCENT", "2.0"))  # 5% change
+DEFAULT_TOLERANCE_ABSOLUTE = float(os.getenv("DEFAULT_TOLERANCE_ABSOLUTE", "0.5"))  # absolute change
+MIN_TIME_BETWEEN_UPDATES = int(os.getenv("MIN_TIME_BETWEEN_UPDATES", "30"))  # seconds
+
+# Last Values and Timestamps
+last_values = {}
+last_timestamps = {}
+
+SENSOR_TOLERANCES = {
+    "temperature": {"percent": DEFAULT_TOLERANCE_PERCENT, "absolute": DEFAULT_TOLERANCE_ABSOLUTE},
+    "light": {"percent": 0.0, "absolute": 0.1},  # binary sensor
+}
 
 # Kafka producer with retry logic
 def create_kafka_producer():
@@ -77,18 +94,122 @@ def on_connect(client, userdata, flags, reason_code, properties):
         client.subscribe(subs)
         print(f"Subscribed to MQTT topics: {', '.join(SUB_TOPICS)}")
 
+def check_tolerance(topic, current_value, timestamp):
+    """Check if the change in value exceeds the defined tolerances."""
+    print(f"Checking tolerance for topic {topic} with current value {current_value}")
+    # Send if no previous record
+    if topic not in last_values:
+        print(f"No previous value for topic {topic}, sending update.")
+        return True
+    
+    last_value = last_values[topic]
+    if not isinstance(current_value, (int, float)) or not isinstance(last_value, (int, float)):
+        print(f"Non-numeric value detected for topic {topic}, sending update.")
+        return True
+
+    # Get sensor type from topic (e.g., "sensors/temperature/room1" -> "temperature")
+    sensor_type = None
+    if topic.startswith("sensors/"):
+        parts = topic.split('/')
+        if len(parts) >= 4:
+            sensor_type = parts[3]
+
+    # Find tolerances for this sensor type
+    tolerances = SENSOR_TOLERANCES.get(sensor_type, {
+        "percent": DEFAULT_TOLERANCE_PERCENT,
+        "absolute": DEFAULT_TOLERANCE_ABSOLUTE
+    })
+
+    # Calculate Changes
+    absolute_change = abs(current_value - last_value)
+    # Avoid division by zero
+    if current_value == 0.0 and last_value == 0.0:
+        percent_change = 0.0
+        return False
+    elif last_value == 0.0 and current_value != 0.0:
+        percent_change = 100.0  # from 0 to something is 100% change
+        print(f"Significant change for {topic}: from 0 to {current_value}")
+        return True
+    elif current_value == 0.0 and last_value != 0.0:
+        percent_change = 100.0  # from something to 0 is 100% change
+        print(f"Significant change for {topic}: from {last_value} to 0")
+        return True
+    else:
+        percent_change = (absolute_change / abs(last_value) * 100) if last_value != 0 else float('inf')
+
+    # Check if the change exceeds the defined tolerances
+    percent_tolerance = tolerances.get("percent", DEFAULT_TOLERANCE_PERCENT)
+    absolute_tolerance = tolerances.get("absolute", DEFAULT_TOLERANCE_ABSOLUTE)
+
+    exceeds_absolute = absolute_change >= tolerances["absolute"]
+    exceeds_percent = percent_change >= tolerances["percent"]
+
+    print(f"Changes for {topic}: absolute={absolute_change:.2f} (threshold={absolute_tolerance}), percent={percent_change:.2f}% (threshold={percent_tolerance}%)")
+
+# If change doesn't exceed tolerances, check time constraint last
+    if not (exceeds_absolute or exceeds_percent):
+        # Check minimum time between updates
+        if topic in last_timestamps:
+            elapsed_time = timestamp - last_timestamps[topic]
+            if elapsed_time < MIN_TIME_BETWEEN_UPDATES:
+                print(f"No significant change and minimum time not reached for {topic}: {elapsed_time}s < {MIN_TIME_BETWEEN_UPDATES}s")
+                return False
+
+    return exceeds_absolute or exceeds_percent
+
+def extract_sensor_value(message):
+    """ Get the numerical value from the message payload. """
+    if isinstance(message, dict):
+        if "fields" in message:
+            print(f"Extracting from fields: {message['fields']}")
+            fields = message["fields"]
+            for field in SENSOR_FIELDS.split(","):
+                print(f"Checking field: {field}")
+                field = field.strip()
+                if field in fields:
+                    return fields[field]
+        
+    # Fallback: if message is a simple value
+    elif isinstance(message, (int, float)):
+        print(f"Message is a direct numeric value: {message}")
+        return message
+    
+    return None
+
+def update_last_value(topic, value, timestamp):
+    """ Update the last known value and timestamp for a topic. """
+    last_values[topic] = value
+    last_timestamps[topic] = timestamp
+
 def on_message(client, userdata, msg):
     try:
         payload = msg.payload.decode("utf-8")
+        print(f"Received MQTT message on topic {msg.topic}: {payload}")
         message = json.loads(payload) if payload.startswith("{") else {"payload": payload}
 
         topic = msg.topic
+        timestamp = int(time.time())
         # Branch by topic namespace
         if topic.startswith("sensors/"):
+            # Extract sensor values
+            print(f"Processing sensor message on topic {topic}")
+            sensor_value = extract_sensor_value(message)
+            print(f"Extracted sensor value: {sensor_value}")
+
+            # Check tolerances
+            if sensor_value is not None and not check_tolerance(topic, sensor_value, timestamp):
+                print(f"Skipping sensor update for {topic} due to tolerance limits.")
+                return
+            
+            # Update last known value
+            if sensor_value is not None:
+                update_last_value(topic, sensor_value, timestamp)
+
             # Forward raw sensor message to Kafka for Telegraf's json_v2 parser
             kafka_msg = {"topic": topic, "message": message}
             producer.send(KAFKA_TOPIC, kafka_msg)
             print(f"Forwarded sensor to Kafka: {kafka_msg}")
+
         elif topic.startswith("actuators/"):
             # Treat actuator topics as locally executed commands.
             # Do NOT forward the actuator command to the central KAFKA_TOPIC to avoid polluting metrics.

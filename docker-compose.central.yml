@@ -52,6 +52,7 @@ services:
     depends_on:
       - kafka
       - victoria-metrics
+      - zookeeper
     networks:
       - victoriametrics
       - iot-net
