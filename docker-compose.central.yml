@@ -72,6 +72,21 @@ services:
     networks:
       - victoriametrics
 
+  api:
+    build: ./API
+    container_name: api
+    ports:
+      - "5000:5000"
+    environment:
+      VICTORIA_METRICS_URL: http://victoria-metrics:8428
+      API_PORT: 5000
+      API_DEBUG: "false"
+    depends_on:
+      - victoria-metrics
+    networks:
+      - victoriametrics
+      - iot-net
+
 networks:
   iot-net:
     external: true

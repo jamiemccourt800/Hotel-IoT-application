@@ -8,6 +8,12 @@ This splits the stack into three compose files:
 
 The bridge forwards only sensor messages to central Kafka (`mqtt_messages`). Actuator commands are handled locally and only an `actions` event is emitted to Kafka (`executed_actions`).
 
+## API
+
+Current API Calls:
+- localhost:5000/hotels
+- localhost:5000/hotels/HTL-Alpha/rooms
+
 ## Run
 
 - Create a shared network once:
@@ -26,12 +32,11 @@ The bridge forwards only sensor messages to central Kafka (`mqtt_messages`). Act
 
 ## Ports
 
+- API: http://localhost:5000
 - Grafana: http://localhost:3000 (admin/admin)
 - VictoriaMetrics: http://localhost:8428
 - Node-RED (Hotel 1): http://localhost:1881
-- Node-RED (Hotel 2): http://localhost:1882
 - Simulator UI (Hotel 1): http://localhost:5001
-- Simulator UI (Hotel 2): http://localhost:5002
 
 ## Topics
 
