@@ -57,6 +57,28 @@ services:
     networks:
       - hotel1
 
+  api:
+    networks:
+      - hotel1
+      - iot-net
+    build:
+      context: ./API-hotel
+      no_cache: true
+    container_name: api-hotel1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./API-hotel:/app
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - HOTEL_ID=HTL-Alpha
+      - API_PORT=5000
+    tty: true
+    command: fastapi run
+
+
+
 networks:
   iot-net:
     external: true

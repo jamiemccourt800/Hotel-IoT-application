@@ -29,6 +29,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    ports:
+      - "9092:9092"
     networks:
       iot-net:
         aliases:
@@ -63,6 +65,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      Grafana_admin_user: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -73,7 +76,7 @@ services:
       - victoriametrics
 
   api:
-    build: ./API
+    build: API-central
     container_name: api
     ports:
       - "5000:5000"
