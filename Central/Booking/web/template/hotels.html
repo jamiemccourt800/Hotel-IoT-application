@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Listings • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.5.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.5.1/core.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="logo">Booking</span> Portal</div>
+    <div class="search-bar">
+      <input id="search" type="text" placeholder="Search hotels by name or city" />
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+    </div>
+  </header>
+  <main>
+    <div class="toolbar">
+      <div class="filters">
+        <select id="city-filter">
+          <option value="">All Cities</option>
+        </select>
+        <select id="sort-filter">
+          <option value="">Sort</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+        </select>
+        <div class="badge-count" id="result-count">0 results</div>
+      </div>
+      <a href="/login" style="font-size:.65rem; text-transform:uppercase; letter-spacing:.15em; font-weight:600; color:var(--text-dim); text-decoration:none;">Login</a>
+    </div>
+
+    <div id="status" class="status-bar" aria-live="polite"></div>
+    <div class="hotel-grid" id="hotel-grid"></div>
+    <div id="empty" class="empty" style="display:none;">No hotels match your search.</div>
+  </main>
+  <footer>© <span id="year"></span> Booking Platform • Public Listings</footer>
+
+  <script type="py">
+from js import document, fetch
+import asyncio, json, datetime
+from pyodide.ffi import to_js
+
+API_HOTELS = '/api/hotels'
+
+status_el = document.getElementById('status')
+search_el = document.getElementById('search')
+city_filter = document.getElementById('city-filter')
+sort_filter = document.getElementById('sort-filter')
+count_el = document.getElementById('result-count')
+grid_el = document.getElementById('hotel-grid')
+empty_el = document.getElementById('empty')
+
+_all_hotels = []
+_filtered = []
+
+# Utility functions
+
+def set_status(msg: str, kind: str = 'error'):
+    status_el.className = 'status-bar show ' + kind
+    status_el.innerHTML = msg
+
+def clear_status():
+    status_el.className = 'status-bar'
+    status_el.innerHTML = ''
+
+def render_hotels(data):
+    grid_el.innerHTML = ''
+    if not data:
+        empty_el.style.display = 'block'
+    else:
+        empty_el.style.display = 'none'
+    frag = document.createDocumentFragment()
+    for h in data:
+        card = document.createElement('div')
+        card.className = 'hotel-card'
+        # Basic card markup
+        card.innerHTML = f'''<picture><img loading="lazy" src="{h['image']}" alt="{h['name']}" /></picture>
+        <div class="hotel-body">
+          <div class="hotel-name">{h['name']}</div>
+          <div class="meta">{h['city']} • {h['country']}</div>
+          <div class="price">${h['price_per_night']} <span style="font-size:.6rem; letter-spacing:.15em; opacity:.7; font-weight:500;">/ night</span></div>
+        </div>'''
+        frag.appendChild(card)
+    grid_el.appendChild(frag)
+    count_el.innerHTML = f"{len(data)} result{'s' if len(data)!=1 else ''}"
+
+
+def build_city_filter():
+    cities = sorted(set([h['city'] for h in _all_hotels]))
+    for c in cities:
+        opt = document.createElement('option')
+        opt.value = c
+        opt.textContent = c
+        city_filter.appendChild(opt)
+
+
+def apply_filters(*_):
+    global _filtered
+    term = search_el.value.strip().lower()
+    city = city_filter.value
+    sort = sort_filter.value
+
+    data = _all_hotels
+    if city:
+        data = [h for h in data if h['city'] == city]
+    if term:
+        data = [h for h in data if term in h['name'].lower() or term in h['city'].lower()]
+
+    if sort == 'price_asc':
+        data.sort(key=lambda x: x['price_per_night'])
+    elif sort == 'price_desc':
+        data.sort(key=lambda x: x['price_per_night'], reverse=True)
+    _filtered = data
+    render_hotels(_filtered)
+
+async def load_hotels():
+    clear_status()
+    try:
+        resp = await fetch(API_HOTELS)
+        data = await resp.json()
+        hotels = data.to_py().get('hotels', [])
+        if not hotels:
+            set_status('No hotels available.', 'error')
+            return
+        global _all_hotels
+        _all_hotels = hotels
+        build_city_filter()
+        apply_filters()
+    except Exception as e:
+        set_status('Failed to load hotels: ' + str(e), 'error')
+
+# Event listeners
+search_el.addEventListener('input', lambda evt: apply_filters())
+city_filter.addEventListener('change', lambda evt: apply_filters())
+sort_filter.addEventListener('change', lambda evt: apply_filters())
+
+# Kick off
+asyncio.ensure_future(load_hotels())
+
+# Footer year
+try:
+    document.getElementById('year').innerHTML = str(datetime.datetime.now().year)
+except Exception:
+    pass
+  </script>
+</body>
+</html>
