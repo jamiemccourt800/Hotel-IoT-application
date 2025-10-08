@@ -5,6 +5,9 @@ services:
     image: eclipse-mosquitto
     ports:
       - "1883:1883"
+
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     networks:
       - default
 
@@ -42,6 +45,22 @@ services:
     ports:
       - "5000:5000"
 
+  iot-simulator:
+    build: ./iot-simulator
+    container_name: iot-simulator
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: "101"
+      SENSOR: sensor-iot
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: "1883"
+      MQTT_QOS: "1"
+      MQTT_RETAIN: "false"
+      MQTT_KEEPALIVE: "60"
+      SPEED: "1.0"
+    restart: unless-stopped
+
+
   mqtt-to-kafka:
     build: ./MQTT
     depends_on:
@@ -52,7 +71,8 @@ services:
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
-      MQTT_TOPIC: sensors/#
+      # Subscribe to both simulator`sensors/#` and the iot-simulator `telemetry/#` topics
+      MQTT_TOPIC: "sensors/#,telemetry/#"
       KAFKA_BROKER: kafka:9092
       KAFKA_TOPIC: mqtt_messages
 
