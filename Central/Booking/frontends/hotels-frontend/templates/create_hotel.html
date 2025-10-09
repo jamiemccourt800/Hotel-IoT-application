@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Hotel • Booking Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- PyScript assets -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+ </head>
+<body>
+    {% include 'spanel.html' %}
+    <main style="max-width:720px; margin:0 auto; padding:1.4rem clamp(1rem,4vw,3rem) 3rem;">
+        <div class="panel login-panel" style="margin-top:1rem;">
+            <h1 style="margin-top:0;"><span class="logo">Create</span> Hotel</h1>
+            <p class="muted intro">Add a new hotel listing to the catalog.</p>
+            <div id="status" class="status" aria-live="polite"></div>
+
+    <form id="create-hotel-form" style="display:flex; flex-direction:column; gap:1rem;">
+        <label for="name">Hotel Name:</label>
+        <input type="text" id="name" name="name" required>
+        
+        <label for="city">City:</label>
+        <input type="text" id="city" name="city" required>
+        
+        <label for="country">Country:</label>
+        <input type="text" id="country" name="country" required>
+        
+        <label for="price_per_night">Price per Night:</label>
+        <input type="number" id="price_per_night" name="price_per_night" required>
+        
+        <label for="image">Image URL:</label>
+        <input type="url" id="image" name="image" required>
+        <label for="room_count">Room Count:</label>
+        <input type="number" id="room_count" name="room_count" min="0" step="1" placeholder="e.g. 120">
+        <details class="muted" style="font-size:.75rem;">
+            <summary style="cursor:pointer; font-weight:600;">Advanced (Managers)</summary>
+            <label for="managers" style="margin-top:.5rem;">Additional Managers (comma-separated usernames):</label>
+            <input type="text" id="managers" name="managers" placeholder="manager2, manager3">
+            <p class="muted" style="margin:.4rem 0 0;">You are automatically added. Only users with manager/admin role will be applied.</p>
+        </details>
+        
+                <button id="submit-btn" type="submit"><span class="btn-label">Create Hotel</span></button>
+        </form>
+        <div style="margin-top:1rem"></div>
+                <a href="/" style="font-size:.65rem; text-transform:uppercase; letter-spacing:.15em; font-weight:600; color:var(--text-dim); text-decoration:none;">Back to listings</a>
+        </div>
+    </main>
+    <footer style="padding:2rem 0 3rem; text-align:center; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Create Hotel</footer>
+
+    <py-config>
+        packages = []
+    </py-config>
+    
+    <py-script src="{{ url_for('static', filename='py/create_hotel.py') }}"></py-script>
+</body>
+</html>

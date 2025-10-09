@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Listings • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {% include 'spanel.html' %}
+  <main>
+    <div class="toolbar">
+      <div class="filters">
+        <select id="city-filter">
+          <option value="">All Cities</option>
+        </select>
+        <select id="sort-filter">
+          <option value="">Sort</option>
+          <option value="price_asc">Price ↑</option>
+          <option value="price_desc">Price ↓</option>
+        </select>
+        <div class="badge-count" id="result-count">0 results</div>
+      </div>
+    </div>
+
+    <div id="status" class="status-bar" aria-live="polite"></div>
+    <!-- Loading Spinner -->
+    <div id="hotel-loading" class="loading-overlay" role="status" aria-live="polite" aria-label="Loading hotels" style="display:none;">
+      <div class="spinner">
+        <div></div><div></div><div></div><div></div>
+      </div>
+      <div class="loading-text">Loading hotels...</div>
+    </div>
+    <div class="hotel-grid" id="hotel-grid"></div>
+    <div id="empty" class="empty" style="display:none;">No hotels match your search.</div>
+  </main>
+  <footer>© <span id="year"></span> Booking Platform • Public Listings</footer>
+
+  <py-config>
+  packages = []
+  </py-config>
+  
+  <py-script src="{{ url_for('static', filename='py/hotels.py') }}"></py-script>
+</body>
+</html>
