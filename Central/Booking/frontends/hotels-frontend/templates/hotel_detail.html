@@ -72,7 +72,7 @@
         </div>
         {% else %}
         <div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:.75rem; background:var(--panel-alt,#101418);">
-          <div class="status show warning" aria-live="polite">Please <a href="/login">log in</a> as a guest to book this hotel.</div>
+          <button class="u-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="window.location.href='/login'">Log In To Book &rarr;</button>
           <div style="margin-top:.75rem;"><a href="/" class="btn-secondary" style="text-decoration:none;">← Back</a></div>
         </div>
         {% endif %}

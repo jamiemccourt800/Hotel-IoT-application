@@ -17,6 +17,17 @@
     <h1 style="margin:0 0 1.2rem; font-size:1.5rem; letter-spacing:-.5px; display:flex; align-items:center; gap:.65rem;">Manage Hotels</h1>
     <div id="status" class="status" aria-live="polite"></div>
     <div class="panel" style="padding:1.2rem 1.3rem 1.8rem;">
+      <div style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.8rem;">
+        <div class="field">
+          <label for="av-start">From</label>
+          <input type="date" id="av-start" />
+        </div>
+        <div class="field">
+          <label for="av-end">To</label>
+          <input type="date" id="av-end" />
+        </div>
+        <button id="btn-refresh" class="u-btn" type="button" style="height:36px;">Refresh</button>
+      </div>
       <div id="loading" class="loading-overlay">
         <div class="spinner"><div></div><div></div><div></div><div></div></div>
         <div class="loading-text">Loading your managed hotels…</div>

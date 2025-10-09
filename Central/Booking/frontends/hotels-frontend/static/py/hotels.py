@@ -56,7 +56,7 @@ def render_hotels(data):
             <div class="hotel-name" style="font-size: 0.9rem; margin-bottom: 4px;">{name}</div>
             <div class="meta" style="font-size: 0.8rem; margin-bottom: 4px;">{city} • {country}</div>
             <div class="price" style="font-size: 0.85rem; margin-bottom: 6px;">€{price} <span style="font-size:.6rem; letter-spacing:.15em; opacity:.7; font-weight:500;">/ night</span></div>
-            <button class="u-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="window.location.href='{link}'">View details &rarr;</button>
+            <button class="u-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="window.location.href='{link}'">Book Now &rarr;</button>
             </div>
         </div>'''
         frag.appendChild(card)

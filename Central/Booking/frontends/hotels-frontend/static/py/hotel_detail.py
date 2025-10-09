@@ -7,12 +7,15 @@ container = document.getElementById('hotel-detail')
 hotel_id = container.getAttribute('data-hotel-id') if container else ''
 API_DETAIL = f"/api/hotels/{hotel_id}"
 API_BOOK = '/api/bookings'
+API_AV = '/api/availability'
 
 status_el = document.getElementById('status')
 wrapper = document.getElementById('hotel-detail')
 skel = document.getElementById('loading-skel')
 book_btn = document.getElementById('book-btn')
 booking_status = document.getElementById('booking-status')
+ci_el = document.getElementById('check_in')
+co_el = document.getElementById('check_out')
 
 # ---------------- Utility -----------------
 
@@ -25,6 +28,16 @@ def clear_status():
     if not status_el: return
     status_el.className = 'status'
     status_el.textContent = ''
+
+def set_booking_status(msg, kind='error'):
+    if booking_status:
+        booking_status.className = f'status show {kind}'
+        booking_status.textContent = msg
+
+def clear_booking_status():
+    if booking_status:
+        booking_status.className = 'status'
+        booking_status.textContent = ''
 
 # --------------- Detail Load --------------
 async def load_detail():
@@ -108,17 +121,86 @@ async def load_detail():
     except Exception as e:
         set_status(f'Error loading hotel: {e}', 'error')
 
-# --------------- Booking ------------------
+# --------------- Availability + Booking ------------------
 
-def set_booking_status(msg, kind='error'):
-    if booking_status:
-        booking_status.className = f'status show {kind}'
-        booking_status.textContent = msg
+async def check_availability(ci: str, co: str):
+    """Query availability; return dict or None on error."""
+    try:
+        params = f"?hotel_id={hotel_id}&start={ci}&end={co}"
+        r = await fetch(f"{API_AV}{params}")
+        if not r.ok:
+            return None
+        data = await r.json()
+        py = data.to_py()
+        if not py.get('ok'):
+            return None
+        return py
+    except Exception:
+        return None
 
-def clear_booking_status():
-    if booking_status:
-        booking_status.className = 'status'
-        booking_status.textContent = ''
+def _date_range(ci: str, co: str):
+    try:
+        s = datetime.date.fromisoformat(ci)
+        e = datetime.date.fromisoformat(co)
+        cur = s
+        out = []
+        while cur < e:
+            out.append(cur.isoformat())
+            cur = cur + datetime.timedelta(days=1)
+        return out
+    except Exception:
+        return []
+
+async def validate_dates(evt=None):
+    """Validate selected dates against availability; disable booking if fully booked on any day."""
+    try:
+        if not (ci_el and co_el):
+            return
+        ci = ci_el.value or ''
+        co = co_el.value or ''
+        # Reset validity
+        ci_el.setCustomValidity('')
+        co_el.setCustomValidity('')
+        if not ci or not co:
+            return
+        # Basic check order
+        try:
+            ci_dt = datetime.date.fromisoformat(ci)
+            co_dt = datetime.date.fromisoformat(co)
+            if co_dt <= ci_dt:
+                co_el.setCustomValidity('Check-out must be after check-in')
+                if book_btn:
+                    book_btn.disabled = True
+                co_el.reportValidity()
+                return
+        except Exception:
+            return
+        # Fetch availability and validate
+        av = await check_availability(ci, co)
+        if not av:
+            # Unknown availability; do not hard-block but warn
+            set_booking_status('Could not verify availability right now. Try again.', 'warning')
+            if book_btn:
+                book_btn.disabled = False
+            return
+        fully = set(av.get('fully_booked_dates') or [])
+        days = _date_range(ci, co)
+        any_blocked = any(d in fully for d in days)
+        min_av = int(av.get('min_available', 0))
+        if any_blocked or min_av <= 0:
+            msg = 'Selected dates include fully booked day(s). Please choose different dates.'
+            co_el.setCustomValidity(msg)
+            co_el.reportValidity()
+            set_booking_status(msg, 'error')
+            if book_btn:
+                book_btn.disabled = True
+        else:
+            clear_booking_status()
+            if book_btn:
+                book_btn.disabled = False
+    except Exception:
+        # Non-fatal validation failure
+        pass
 
 async def do_booking(evt):
     evt.preventDefault()
@@ -129,8 +211,6 @@ async def do_booking(evt):
         console.log('No book button found, returning')
         return
         
-    ci_el = document.getElementById('check_in')
-    co_el = document.getElementById('check_out')
     g_el  = document.getElementById('guests')
     ci = ci_el.value if ci_el else ''
     co = co_el.value if co_el else ''
@@ -154,6 +234,22 @@ async def do_booking(evt):
         console.log(f'Date parse error: {e}')
         set_booking_status('Invalid date format', 'error')
         return
+
+    # Verify availability before submit
+    try:
+        av = await check_availability(ci, co)
+        if av:
+            if int(av.get('min_available', 0)) <= 0:
+                set_booking_status('These dates are fully booked. Please pick different dates.', 'error')
+                return
+            # Also ensure all days are available
+            fully = set(av.get('fully_booked_dates') or [])
+            if any(d in fully for d in _date_range(ci, co)):
+                set_booking_status('These dates include fully booked day(s). Please pick different dates.', 'error')
+                return
+    except Exception as e:
+        console.log(f'Availability check error: {e}')
+        pass
 
     # Guests must be a positive integer
     try:
@@ -276,11 +372,14 @@ try:
                     cur_co = datetime.date.fromisoformat(co_el.value)
                     if cur_co <= new_ci:
                         co_el.value = new_min_co.isoformat()
+                # Re-validate availability after change
+                asyncio.ensure_future(validate_dates())
             except Exception:
                 # If parsing fails, keep current constraints
                 pass
 
         ci_el.addEventListener('change', create_proxy(on_ci_change))
+        co_el.addEventListener('change', create_proxy(lambda evt=None: asyncio.ensure_future(validate_dates())))
 except Exception:
     # Non-fatal if date elements not present
     pass

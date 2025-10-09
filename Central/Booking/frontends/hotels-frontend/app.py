@@ -203,6 +203,15 @@ def admin_update_booking_status(booking_id):
         return jsonify(r.json()), r.status_code
     except Exception:
         return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+
+# Availability proxy (used by dashboards and booking UI)
+@app.get('/api/availability')
+def api_availability():
+    try:
+        r = requests.get(f"{BOOKINGS_API_URL}/api/availability", params=request.args, headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
     
 @app.route('/health')
 def health():

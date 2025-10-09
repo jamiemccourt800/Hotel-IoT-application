@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request
 from pymongo import MongoClient
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
+from math import ceil
 
 app = Flask(__name__)
 
@@ -22,6 +23,27 @@ def actor():
     role = (request.headers.get('X-User-Role') or 'guest').strip().lower()
     role = role if role in ROLE_HIERARCHY else 'guest'
     return {'username': username or None, 'role': role}
+
+# ---- Availability helpers ----
+def _parse_date(date_str: str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
+    except Exception:
+        return None
+
+def _date_iter(start_date, end_date):
+    """Yield dates from start (inclusive) to end (exclusive)."""
+    cur = start_date
+    while cur < end_date:
+        yield cur
+        cur = cur + timedelta(days=1)
+
+def _rooms_needed(guests: int) -> int:
+    try:
+        g = int(guests)
+        return max(1, ceil(g / 2))
+    except Exception:
+        return 1
 
 @app.post('/api/bookings')
 def create_booking():
@@ -63,6 +85,40 @@ def create_booking():
     except Exception:
         nightly_float = 0.0
     total_cost = nightly_float * nights
+
+    # Prevent overbooking: consider confirmed bookings only and 1-2 guests per room.
+    room_count = int(hotel.get('room_count') or 0)
+    if room_count <= 0:
+        return jsonify({'ok': False, 'error': 'No rooms available for this hotel'}), 409
+    rooms_req = _rooms_needed(guests)
+    start_str = ci_dt.strftime('%Y-%m-%d')
+    end_str = co_dt.strftime('%Y-%m-%d')
+    q = {
+        'hotel_id': hotel_id,
+        'status': 'confirmed',
+        'check_in': {'$lt': end_str},
+        'check_out': {'$gt': start_str},
+    }
+    overlaps = list(db.bookings.find(q, {'check_in': 1, 'check_out': 1, 'guests': 1, '_id': 0}))
+    per_day = {}
+    for b in overlaps:
+        b_ci = _parse_date(b.get('check_in') or '')
+        b_co = _parse_date(b.get('check_out') or '')
+        if not b_ci or not b_co or b_co <= b_ci:
+            continue
+        s_i = max(ci_dt.date(), b_ci)
+        e_i = min(co_dt.date(), b_co)
+        if e_i <= s_i:
+            continue
+        rn = _rooms_needed(b.get('guests') or 1)
+        for d in _date_iter(s_i, e_i):
+            key = d.strftime('%Y-%m-%d')
+            per_day[key] = per_day.get(key, 0) + rn
+    # Check capacity for each day in requested stay
+    for d in _date_iter(ci_dt.date(), co_dt.date()):
+        key = d.strftime('%Y-%m-%d')
+        if per_day.get(key, 0) + rooms_req > room_count:
+            return jsonify({'ok': False, 'error': 'Selected dates are fully booked'}), 409
     booking = {
         'hotel_id': hotel_id,
         'hotel_name': hotel.get('name'),
@@ -85,6 +141,78 @@ def create_booking():
         # Fallback: omit _id if something unexpected occurs
         booking.pop('_id', None)
     return jsonify({'ok': True, 'booking': booking}), 201
+
+@app.get('/api/availability')
+def availability():
+    """Return per-day booked and available rooms for a hotel in [start, end)."""
+    hotel_id = (request.args.get('hotel_id') or '').strip()
+    start = (request.args.get('start') or '').strip()
+    end = (request.args.get('end') or '').strip()
+    if not hotel_id or not start or not end:
+        return jsonify({'ok': False, 'error': 'hotel_id, start, end required'}), 400
+    s = _parse_date(start)
+    e = _parse_date(end)
+    if not s or not e:
+        return jsonify({'ok': False, 'error': 'Invalid date format (YYYY-MM-DD)'}), 400
+    if e <= s:
+        return jsonify({'ok': False, 'error': 'end must be after start'}), 400
+    # Load hotel to get room_count
+    from bson import ObjectId
+    try:
+        ho = db.hotels.find_one({'_id': ObjectId(hotel_id)})
+    except Exception:
+        ho = None
+    if not ho:
+        return jsonify({'ok': False, 'error': 'Hotel not found'}), 404
+    room_count = int(ho.get('room_count') or 0)
+    # Overlapping confirmed bookings
+    q = {
+        'hotel_id': hotel_id,
+        'status': 'confirmed',
+        'check_in': {'$lt': end},
+        'check_out': {'$gt': start},
+    }
+    overlaps = list(db.bookings.find(q, {'check_in': 1, 'check_out': 1, 'guests': 1, '_id': 0}))
+    per_day = {}
+    for b in overlaps:
+        b_ci = _parse_date(b.get('check_in') or '')
+        b_co = _parse_date(b.get('check_out') or '')
+        if not b_ci or not b_co or b_co <= b_ci:
+            continue
+        s_i = max(s, b_ci)
+        e_i = min(e, b_co)
+        if e_i <= s_i:
+            continue
+        rn = _rooms_needed(b.get('guests') or 1)
+        for d in _date_iter(s_i, e_i):
+            key = d.strftime('%Y-%m-%d')
+            per_day[key] = per_day.get(key, 0) + rn
+    days = []
+    max_booked = 0
+    min_avail = None
+    fully = []
+    for d in _date_iter(s, e):
+        key = d.strftime('%Y-%m-%d')
+        booked = int(per_day.get(key, 0))
+        avail = max(0, room_count - booked)
+        days.append({'date': key, 'booked_rooms': booked, 'available_rooms': avail})
+        if booked > max_booked:
+            max_booked = booked
+        if min_avail is None or avail < min_avail:
+            min_avail = avail
+        if avail <= 0:
+            fully.append(key)
+    return jsonify({
+        'ok': True,
+        'hotel_id': hotel_id,
+        'room_count': room_count,
+        'start': start,
+        'end': end,
+        'max_booked': max_booked,
+        'min_available': (min_avail if min_avail is not None else room_count),
+        'fully_booked_dates': fully,
+        'days': days,
+    })
 
 @app.get('/api/bookings')
 def list_bookings():
