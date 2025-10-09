@@ -26,12 +26,15 @@
             <h1 id="hotel-name"></h1>
             <div id="hotel-location" class="muted"></div>
             <div id="hotel-price" class="price-tag"></div>
+            {% if user.role == 'manager' or user.role == 'admin' %}
             <div id="hotel-capacity" class="muted" style="margin-top:.25rem;"></div>
             <div id="hotel-managers" class="muted small" style="margin-top:.35rem;"></div>
             <div id="hotel-created" class="muted tiny" style="margin-top:.35rem;"></div>
+            {% endif %}
           </div>
         </div>
         <hr class="divider" />
+        {% if user and user.role == 'guest' %}
         <form id="booking-form" style="margin-top:1.5rem; display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-start; background:var(--panel-alt,#101418); padding:1rem 1.25rem; border-radius:.75rem" method="post" action="/api/bookings">
           <!-- Non-JS fallback: include hotel_id so form post works without PyScript -->
           <input type="hidden" name="hotel_id" value="{{ hotel_id }}" />
@@ -62,6 +65,17 @@
           </div>
           <div id="booking-status" class="status" style="flex:1 1 100%; margin-top:.25rem;" aria-live="polite"></div>
         </form>
+        {% elif user %}
+        <div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:.75rem; background:var(--panel-alt,#101418);">
+          <div class="status show info" aria-live="polite">Only guest accounts can make bookings. Switch to a guest account to book this hotel.</div>
+          <div style="margin-top:.75rem;"><a href="/" class="btn-secondary" style="text-decoration:none;">← Back</a></div>
+        </div>
+        {% else %}
+        <div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:.75rem; background:var(--panel-alt,#101418);">
+          <div class="status show warning" aria-live="polite">Please <a href="/login">log in</a> as a guest to book this hotel.</div>
+          <div style="margin-top:.75rem;"><a href="/" class="btn-secondary" style="text-decoration:none;">← Back</a></div>
+        </div>
+        {% endif %}
         <section id="map-section" style="margin-top:2rem;">
           <h2 style="margin:0 0 .75rem; font-size:.9rem; letter-spacing:.12em; text-transform:uppercase;">Location Map</h2>
           <div class="map-frame" style="border:1px solid #223; border-radius:.75rem; overflow:hidden; background:#0c1116; height:150px; position:relative;">

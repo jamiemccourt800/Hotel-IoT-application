@@ -50,15 +50,15 @@ def render_hotels(data):
         country = h.get('country','')
         price = h.get('price_per_night','')
         img = h.get('image','')
-        card.innerHTML = f'''<a href="{link}" class="hotel-link" style="text-decoration:none; color:inherit; display:block;">
-            <picture><img loading="lazy" src="{img}" alt="{name}" /></picture>
-            <div class="hotel-body">
-                <div class="hotel-name">{name}</div>
-                <div class="meta">{city} • {country}</div>
-                <div class="price">${price} <span style="font-size:.6rem; letter-spacing:.15em; opacity:.7; font-weight:500;">/ night</span></div>
-                <div class="details-link"><a href="{link}">View details &rarr;</a></div>
+        card.innerHTML = f'''<div class="hotel-content" style="height: auto; min-height: 200px;">
+            <picture><img loading="lazy" src="{img}" alt="{name}" style="height: 120px; object-fit: cover;" /></picture>
+            <div class="hotel-body" style="padding: 8px;">
+            <div class="hotel-name" style="font-size: 0.9rem; margin-bottom: 4px;">{name}</div>
+            <div class="meta" style="font-size: 0.8rem; margin-bottom: 4px;">{city} • {country}</div>
+            <div class="price" style="font-size: 0.85rem; margin-bottom: 6px;">€{price} <span style="font-size:.6rem; letter-spacing:.15em; opacity:.7; font-weight:500;">/ night</span></div>
+            <button class="u-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="window.location.href='{link}'">View details &rarr;</button>
             </div>
-        </a>'''
+        </div>'''
         frag.appendChild(card)
     if grid_el:
         grid_el.appendChild(frag)
