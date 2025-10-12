@@ -12,42 +12,46 @@ services:
       - hotel1
       - iot-net
 
-  simulator:
-    build: ./simulator
-    environment:
-      MQTT_BROKER: mosquitto
-      MQTT_PORT: 1883
-      HOTEL_ID: HTL-Alpha
-      ROOM_NUMBER: 101
-    ports:
-      - "5001:5000"
-    depends_on:
-      - mosquitto
-    networks:
-      - hotel1
+  #simulator:
+  #  build: ./simulator
+  #  environment:
+  #    MQTT_BROKER: mosquitto
+  #    MQTT_PORT: 1883
+  #    HOTEL_ID: HTL-Alpha
+  #    ROOM_NUMBER: 101
+  #  ports:
+  #    - "5001:5000"
+  #  depends_on:
+  #    - mosquitto
+  #  networks:
+  #    - hotel1
 
-  iot-simulator:
-    build: ./iot-simulator
-    container_name: iot-simulator
+  temperature-sensor:
+    build:
+     #context: ./hotel/101/temperature-sensor
+      context: ./temperature-sensor
     environment:
       HOTEL_ID: hotel_01
       ROOM: "101"
-      SENSOR: sensor-iot
-      MQTT_BROKER: mosquitto
-      MQTT_PORT: "1883"
-      MQTT_QOS: "1"
-      MQTT_RETAIN: "false"
-      MQTT_KEEPALIVE: "60"
-      SPEED: "1.0"
-    restart: unless-stopped
-
+      SENSOR: temperature-sensor
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      MODE: random
+      INTERVAL: 1.0
+      SPEED: 1.0
+    volumes:
+     #- ./hotel/101/temperature-sensor/.data:/app/.data:ro
+      - ./temperature-sensor/.data:/app/.data:ro
+    networks:
+      - hotel1
+      - iot-net
 
   mqtt-to-kafka:
     build: ./MQTT
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
-      MQTT_TOPIC: sensors/#|actuators/#
+      MQTT_TOPIC: hotel_01/#
       MQTT_PUB_TOPIC_PREFIX: actuators/
       KAFKA_BROKER: kafka:9092
       KAFKA_TOPIC: mqtt_messages
@@ -72,11 +76,11 @@ services:
       - mosquitto
     networks:
       - hotel1
+      - iot-net
 
   api:
     networks:
       - hotel1
-      - iot-net
     build:
       context: ./API-hotel
       no_cache: true
@@ -92,8 +96,6 @@ services:
       - API_PORT=5000
     tty: true
     command: fastapi run
-
-
 
 networks:
   iot-net:

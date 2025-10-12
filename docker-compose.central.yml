@@ -39,12 +39,12 @@ services:
   victoria-metrics:
     image: victoriametrics/victoria-metrics:v1.126.0
     command: --selfScrapeInterval=5s -storageDataPath=/victoria-metrics-data
-    volumes:
       - ./victoria-metrics-data:/victoria-metrics-data
     ports:
       - "8428:8428"
     networks:
       - victoriametrics
+      - iot-net
 
   telegraf:
     image: telegraf:latest
@@ -74,6 +74,7 @@ services:
       - victoria-metrics
     networks:
       - victoriametrics
+      - iot-net
 
   api:
     build: API-central
