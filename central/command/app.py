@@ -8,12 +8,11 @@ from config import config
 from routes.health import health_check
 import json, uuid, time
 
-app = FastAPI()
 logger = logging.getLogger("app")
 logger.setLevel(logging.INFO)
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(app: FastAPI):
     await start_producer()
     msg = "App startup at " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
     logger.info(msg)
@@ -22,26 +21,33 @@ async def lifespan():
     msg = "App ended at " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
     logger.info(msg)
 
+app = FastAPI(lifespan=lifespan)
+
 @app.get("/health")
 async def health():
     return await health_check()
 
 
-# @app.post("/send_command/{hotel_id}/{room_number}/{device_type}/{command_type}")
-# async def send_command(
-#     hotel_id: str,
-#     room_number: int,
-#     device_type: str,
-#     command_type: str,
-#     command_value: dict,
-#     background_tasks: BackgroundTasks,
-# ):
-#     """
-#     Send a command to a specific device in a hotel room.
-#
-#     Args:
-#         hotel_id (str): The ID of the hotel.
-#         room_number (int): The room number.
-#         device_type (str): The type of device (e.g., "thermostat", "light").
-#         command_type (str): The type of command (e.g., "set_temperature", "turn_on").
-#         command_value (dict): The value associated with the command.
+@app.post("/send_command/{hotel_id}/{room_number}/temperature/{value}")
+async def send_command(
+    hotel_id: str,
+    room_number: int,
+    value: float,
+):
+    """
+    Send a command to a specific device in a hotel room.
+
+    Args:
+        hotel_id (str): The ID of the hotel.
+        room_number (int): The room number.
+        value (float): The value associated with the command.
+    Returns:
+        dict: A dictionary indicating success or failure.
+    """
+    from routes.actuator import set_temperature
+    try:
+        return await set_temperature(hotel_id, room_number, value)
+    except Exception as e:
+        logger.error(f"Error in send_command: {e}", exc_info=True)
+        return {"status": "fail", "error": str(e)}
+
