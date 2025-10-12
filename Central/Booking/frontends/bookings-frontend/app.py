@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session, send_from_directory, abort, g
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session, send_from_directory, abort, g, Response
 import os
 from datetime import timedelta, datetime
 import jwt
@@ -112,6 +112,29 @@ def api_bookings_delete(booking_id):
     try:
         r = requests.delete(f"{BOOKINGS_API_URL}/api/bookings/{booking_id}", headers=_forward_auth_headers(), timeout=10)
         return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+    
+@app.route('/api/admin/bookings')
+def api_admin_bookings_list():
+    """Proxy list bookings for managers/admins (backend enforces role; guests get their own)."""
+    try:
+        r = requests.get(f"{BOOKINGS_API_URL}/api/bookings", params=request.args, headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+
+@app.route('/api/admin/bookings/<booking_id>', methods=['DELETE'])
+def api_admin_bookings_delete(booking_id):
+    """Proxy admin-only hard delete to the bookings backend. Backend enforces admin role via headers."""
+    try:
+        r = requests.delete(f"{BOOKINGS_API_URL}/api/admin/bookings/{booking_id}", headers=_forward_auth_headers(), timeout=10)
+        # Prefer JSON if available; otherwise pass through raw content to preserve status/text
+        try:
+            data = r.json()
+            return jsonify(data), r.status_code
+        except ValueError:
+            return Response(r.content, status=r.status_code, content_type=r.headers.get('Content-Type', 'application/json'))
     except Exception:
         return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
     

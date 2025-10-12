@@ -92,9 +92,10 @@ async def render_hotel(h, start, end):
       <div class="hotel-name">{h.get('name','')} <span class="price">${h.get('price_per_night',0)}</span></div>
       <div class="meta">{h.get('city','')} • {h.get('country','')}</div>
       {caps}
-      <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.4rem;">
-        <a class="u-btn" href="/hotel/{hid}" style="text-decoration:none;">View</a>
-        <a class="u-btn" href="/edit-hotel/{hid}" style="text-decoration:none;">Edit</a>
+            <div style="display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.4rem;">
+                <a class="u-btn" href="/hotel/{hid}" style="text-decoration:none;">View</a>
+                <a class="u-btn" href="/edit-hotel/{hid}" style="text-decoration:none;">Edit</a>
+                <a class="u-btn" href="/edit-hotel/{hid}#rooms" style="text-decoration:none;">Manage Rooms</a>
         <button class="u-btn" data-action="toggle" data-id="{hid}" style="background:{'#2b333e' if not hidden_flag else 'rgba(239,68,68,.12)'}; border-color:{'#303a46' if not hidden_flag else 'rgba(239,68,68,.4)'}; color:{'#e5e7eb' if not hidden_flag else '#fca5a5'};">{'Hide' if not hidden_flag else 'Unhide'}</button>
       </div>
       {('<div class="meta" style="margin-top:.5rem; color:#fca5a5;">Hidden</div>' if hidden_flag else '')}

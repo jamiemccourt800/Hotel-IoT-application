@@ -59,6 +59,15 @@
               <input type="number" id="guests" name="guests" min="1" value="1" required />
             </div>
           </div>
+          <div class="field" style="flex:1; min-width:220px;">
+            <label for="room_select">Room</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v13H4z" stroke="currentColor" stroke-width="1.4"/><path d="M9 21v-4m6 4v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <select id="room_select" name="room_id">
+                <option value="">Any available room</option>
+              </select>
+            </div>
+          </div>
           <div style="display:flex; gap:.6rem; align-items:flex-end; padding-top:.3rem;">
             <button class="primary" id="book-btn" title="Create booking" style="height:42px;">Book Now</button>
             <a href="/" class="btn-secondary" style="text-decoration:none; height:42px; display:inline-flex; align-items:center;">← Back</a>

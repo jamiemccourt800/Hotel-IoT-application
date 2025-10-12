@@ -27,6 +27,18 @@ services:
       - MONGO_DB=bookings
     depends_on:
       - mongodb
+  rooms:
+    build: ./backend/rooms
+    ports:
+      - "5004:5001"  # host:container; use host 5004 to avoid clashing with hotels on host
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASS=1Password!
+      - MONGO_DB=bookings
+    depends_on:
+      - mongodb
   users:
     build: ./backend/users
     ports:
@@ -58,6 +70,7 @@ services:
     environment:
       - SECRET_KEY=devops_booking
       - HOTELS_API_URL=http://hotels:5001
+      - ROOMS_API_URL=http://rooms:5001
       - USERS_API_URL=http://users:5002
       - BOOKINGS_API_URL=http://bookings:5003
     volumes:
@@ -66,6 +79,7 @@ services:
       - ./main/static:/app/static_upstream:ro
     depends_on:
       - hotels
+      - rooms
       - users
       - bookings
   users-frontend:

@@ -11,6 +11,7 @@ btn_refresh = document.getElementById('btn-refresh')
 
 API_LIST = '/api/admin/bookings'
 API_STATUS = '/api/admin/bookings'
+API_DELETE = '/api/admin/bookings'
 
 
 def set_status(msg, kind='error'):
@@ -94,11 +95,67 @@ async def update_status(evt, booking_id, new_status, row):
         except Exception:
             pass
 
+async def admin_delete(evt, booking_id, row):
+    evt.preventDefault()
+    try:
+        if not window.confirm('Permanently delete this booking? This cannot be undone.'): return
+        btn = evt.currentTarget
+        if btn:
+            btn.disabled = True
+            btn.textContent = 'Deleting…'
+        r = await fetch(f"{API_DELETE}/{booking_id}", to_js({'method':'DELETE','headers': {'Accept': 'application/json'}}))
+        if not r.ok:
+            # Try to extract backend error message
+            msg = None
+            try:
+                j = await r.json()
+                py = j.to_py()
+                msg = py.get('error') or py.get('message')
+            except Exception:
+                try:
+                    txt = await r.text()
+                    msg = txt if (txt and len(txt) < 300) else None
+                except Exception:
+                    msg = None
+            set_status(f"Delete failed{(': ' + msg) if msg else ''} ({r.status})", 'error')
+            if btn:
+                btn.disabled = False
+                btn.textContent = 'Delete'
+            return
+        j = await r.json()
+        py = j.to_py()
+        if not py.get('ok'):
+            set_status(py.get('error','Delete failed'),'error')
+            if btn:
+                btn.disabled = False
+                btn.textContent = 'Delete'
+            return
+        # Remove row from list
+        row.remove()
+        set_status('Booking deleted','success')
+    except Exception as e:
+        set_status(f'Error: {e}','error')
+        try:
+            if btn:
+                btn.disabled = False
+                btn.textContent = 'Delete'
+        except Exception:
+            pass
+
 
 def render_booking(b):
     row = document.createElement('div')
     row.className = 'booking-item'
     st = b.get('status')
+    # Build room display text if available
+    rn = (b.get('room_number') or '').strip() if b.get('room_number') is not None else ''
+    rt = (b.get('room_type') or '').strip() if b.get('room_type') is not None else ''
+    room_parts = []
+    if rn:
+        room_parts.append(f"Room {rn}")
+    if rt:
+        room_parts.append(rt)
+    room_txt = ' • '.join(room_parts) if room_parts else ''
     row.innerHTML = f'''
       <div class="bk-head">
         <div class="bk-hotel">
@@ -111,12 +168,13 @@ def render_booking(b):
         </div>
       </div>
       <div class="bk-foot">
-        <div class="bk-guests">Guests: {b.get('guests')}</div>
+    <div class="bk-guests">Guests: {b.get('guests')}</div>
+    {('<div class="bk-room">' + room_txt + '</div>') if room_txt else ''}
         <div class="bk-actions">''' + (
             '<span class="bk-cancelled-note">—</span>' if st in ('cancelled','denied') else
             f'<button type="button" class="mb-approve" data-id="{b.get("_id","")}">Approve</button>' +
             f'<button type="button" class="mb-deny" data-id="{b.get("_id","")}">Deny</button>'
-        ) + '''</div>
+        ) + f'''<button type="button" class="mb-delete" data-id="{b.get("_id","")}">Delete</button></div>
       </div>
     '''
     if st not in ('cancelled','denied'):
@@ -126,6 +184,10 @@ def render_booking(b):
             approve.addEventListener('click', create_proxy(lambda evt, bid=b.get('_id'), r=row: asyncio.ensure_future(update_status(evt, bid, 'confirmed', r))))
         if deny:
             deny.addEventListener('click', create_proxy(lambda evt, bid=b.get('_id'), r=row: asyncio.ensure_future(update_status(evt, bid, 'denied', r))))
+    # Admin delete button (backend enforces role)
+    delete_btn = row.querySelector('.mb-delete')
+    if delete_btn:
+        delete_btn.addEventListener('click', create_proxy(lambda evt, bid=b.get('_id'), r=row: asyncio.ensure_future(admin_delete(evt, bid, r))))
     return row
 
 

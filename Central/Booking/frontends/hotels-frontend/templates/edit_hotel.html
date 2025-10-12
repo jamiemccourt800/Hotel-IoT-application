@@ -63,42 +63,36 @@
         <div class="field">
           <label for="name">Name</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V8l7-5 7 5v13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <input id="name" type="text" required placeholder="Hotel name" />
           </div>
         </div>
         <div class="field">
           <label for="city">City</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 21s-6.5-5.2-6.5-11A6.5 6.5 0 0 1 12 3a6.5 6.5 0 0 1 6.5 6.5C18.5 15.8 12 21 12 21Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.5" fill="currentColor"/></svg>
             <input id="city" type="text" required placeholder="City" />
           </div>
         </div>
         <div class="field">
           <label for="country">Country</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M3 5h9l-1 4 4-2h6v12h-6l-4 2 1-4H3V5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <input id="country" type="text" required placeholder="Country" />
           </div>
         </div>
         <div class="field">
           <label for="price">Price / Night</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v18m5-15H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <input id="price" type="number" min="0" step="0.01" required />
           </div>
         </div>
         <div class="field">
           <label for="image">Image URL</label>
             <div class="input-wrap">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7Z" stroke="currentColor" stroke-width="1.5"/><path d="M8.5 10.5h7M8.5 14h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
               <input id="image" type="text" placeholder="https://..." />
             </div>
         </div>
         <div class="field">
           <label for="room_count">Room Count</label>
           <div class="input-wrap">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v13H4z" stroke="currentColor" stroke-width="1.5"/><path d="M9 21v-4m6 4v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <input id="room_count" type="number" min="0" step="1" />
           </div>
         </div>
@@ -109,6 +103,60 @@
         </div>
       </form>
     </div>
+  <div id="rooms" class="panel" style="padding:1.4rem 1.5rem 2rem; margin-top:1rem;">
+      <h2 style="margin:0 0 .8rem; font-size:1rem; letter-spacing:.02em;">Rooms</h2>
+      <div id="rooms-status" class="status" aria-live="polite"></div>
+      <form id="rooms-form" class="styled-form" onsubmit="return false;">
+      <div style="display:flex; gap:.8rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.6rem;">
+        <div class="field">
+          <label for="new_room_number">Room #</label>
+          <div class="input-wrap">
+            <input id="new_room_number" type="text" placeholder="e.g. 101" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_type">Type</label>
+          <div class="input-wrap">
+            <input id="new_room_type" type="text" list="room_type_options" placeholder="single, double, twin, family, suite" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_capacity">Capacity</label>
+          <div class="input-wrap">
+            <input id="new_room_capacity" type="number" min="0" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_price">Price / Night</label>
+          <div class="input-wrap">
+            <input id="new_room_price" type="number" min="0" step="0.01" />
+          </div>
+        </div>
+        <button id="add-room-btn" class="primary" type="button" style="height:40px;">Add Room</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="rooms-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Room #</th>
+              <th style="text-align:left;">Type</th>
+              <th>Capacity</th>
+              <th>Price</th>
+              <th style="width:120px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <datalist id="room_type_options">
+        <option value="single"></option>
+        <option value="double"></option>
+        <option value="twin"></option>
+        <option value="family"></option>
+        <option value="suite"></option>
+      </datalist>
+      </form>
+    </div>
   </main>
   <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Edit Hotel</footer>
   <py-config>
@@ -116,5 +164,97 @@
   </py-config>
   <py-script src="{{ url_for('static', filename='py/panel.py') }}"></py-script>
   <py-script src="{{ url_for('static', filename='py/edit_hotel.py') }}"></py-script>
+  <script>
+    // Minimal JS additions to load and manage rooms
+    (function(){
+      const hotelId = document.getElementById('edit-form')?.getAttribute('data-hotel-id');
+      const tbody = document.querySelector('#rooms-table tbody');
+      const status = document.getElementById('rooms-status');
+      function setRoomsStatus(msg, kind='error'){ if(status){ status.className = `status show ${kind}`; status.textContent = msg; } }
+      function clearRoomsStatus(){ if(status){ status.className = 'status'; status.textContent = ''; } }
+      async function loadRooms(){
+        if(!hotelId) return;
+        try{
+          const res = await fetch(`/api/rooms?hotel_id=${encodeURIComponent(hotelId)}`);
+          const data = await res.json();
+          tbody.innerHTML='';
+          if(!data.ok){ setRoomsStatus(data.error||'Failed to load rooms'); return; }
+          (data.rooms||[]).forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <div class="input-wrap">
+                  <input data-field="room_number" data-id="${r._id}" value="${r.room_number||''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input data-field="type" list="room_type_options" data-id="${r._id}" value="${r.type||''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input type="number" min="0" data-field="capacity" data-id="${r._id}" value="${r.capacity??''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" min="0" data-field="price_per_night" data-id="${r._id}" value="${r.price_per_night??''}" />
+                </div>
+              </td>
+              <td><button class="primary" type="button" style="height:36px;" data-action="save" data-id="${r._id}">Save</button></td>`;
+            tbody.appendChild(tr);
+          });
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      async function addRoom(){
+        clearRoomsStatus();
+        const rn = document.getElementById('new_room_number').value.trim();
+        if(!rn){ setRoomsStatus('Room number required'); return; }
+        const payload = {
+          hotel_id: hotelId,
+          room_number: rn,
+          type: document.getElementById('new_room_type').value.trim()||undefined,
+          capacity: document.getElementById('new_room_capacity').value.trim()||undefined,
+          price_per_night: document.getElementById('new_room_price').value.trim()||undefined
+        };
+        Object.keys(payload).forEach(k=>{ if(payload[k]===undefined||payload[k]==='') delete payload[k]; });
+        try{
+          const res = await fetch('/api/rooms', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+          const data = await res.json();
+          if(!res.ok || !data.ok){ setRoomsStatus(data.error||'Failed to add room'); return; }
+          setRoomsStatus('Room added', 'success');
+          document.getElementById('new_room_number').value='';
+          document.getElementById('new_room_type').value='';
+          document.getElementById('new_room_capacity').value='';
+          document.getElementById('new_room_price').value='';
+          loadRooms();
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      async function saveRoom(roomId, row){
+        clearRoomsStatus();
+        const inputs = row.querySelectorAll('input[data-field]');
+        const payload = {};
+        inputs.forEach(inp=>{ const v = inp.value; if(v!=='' && v!=null){ payload[inp.getAttribute('data-field')] = v; } });
+        if(Object.keys(payload).length===0){ setRoomsStatus('No changes','info'); return; }
+        try{
+          const res = await fetch(`/api/rooms/${roomId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+          const data = await res.json();
+          if(!res.ok || !data.ok){ setRoomsStatus(data.error||'Update failed'); return; }
+          setRoomsStatus('Room saved','success');
+          loadRooms();
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      document.getElementById('add-room-btn')?.addEventListener('click', addRoom);
+      document.getElementById('rooms-table')?.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-action="save"]');
+        if(!btn) return;
+        const roomId = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+        saveRoom(roomId, row);
+      });
+      loadRooms();
+    })();
+  </script>
 </body>
 </html>

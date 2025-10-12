@@ -8,6 +8,7 @@ hotel_id = container.getAttribute('data-hotel-id') if container else ''
 API_DETAIL = f"/api/hotels/{hotel_id}"
 API_BOOK = '/api/bookings'
 API_AV = '/api/availability'
+API_AV_ROOMS = '/api/availability/rooms'
 
 status_el = document.getElementById('status')
 wrapper = document.getElementById('hotel-detail')
@@ -16,6 +17,8 @@ book_btn = document.getElementById('book-btn')
 booking_status = document.getElementById('booking-status')
 ci_el = document.getElementById('check_in')
 co_el = document.getElementById('check_out')
+room_select = document.getElementById('room_select')
+HOTEL_BASE_PRICE = None
 
 # ---------------- Utility -----------------
 
@@ -59,7 +62,13 @@ async def load_detail():
         city = h.get('city','')
         country = h.get('country','')
         document.getElementById('hotel-location').textContent = f"{city} • {country}".strip()
-        document.getElementById('hotel-price').textContent = f"${h.get('price_per_night',0)} / night"
+        try:
+            base_price_val = float(h.get('price_per_night', 0) or 0)
+        except Exception:
+            base_price_val = 0.0
+        global HOTEL_BASE_PRICE
+        HOTEL_BASE_PRICE = base_price_val
+        document.getElementById('hotel-price').textContent = f"${base_price_val} / night"
         img = document.getElementById('hero-img')
         if img:
             img.src = h.get('image','')
@@ -138,6 +147,51 @@ async def check_availability(ci: str, co: str):
     except Exception:
         return None
 
+async def load_available_rooms(ci: str, co: str):
+    """Populate the room selector with rooms available for the full range.
+    If CI/CO invalid or error, fallback to only 'Any available room'."""
+    try:
+        if not room_select:
+            return
+        # Reset to default
+        room_select.innerHTML = ''
+        opt = document.createElement('option')
+        opt.value = ''
+        opt.textContent = 'Any available room'
+        room_select.appendChild(opt)
+        if not ci or not co:
+            return
+        params = f"?hotel_id={hotel_id}&start={ci}&end={co}"
+        r = await fetch(f"{API_AV_ROOMS}{params}")
+        if not r.ok:
+            return
+        data = await r.json()
+        py = data.to_py()
+        if not py.get('ok'):
+            return
+        rooms = py.get('available_rooms') or []
+        for rr in rooms:
+            o = document.createElement('option')
+            o.value = rr.get('_id') or ''
+            num = rr.get('room_number') or ''
+            typ = rr.get('type') or ''
+            cap = rr.get('capacity')
+            cap_txt = f" • {cap}p" if cap is not None else ''
+            # Append price only if room-level price differs from hotel base price
+            price = rr.get('price_per_night')
+            price_txt = ''
+            try:
+                if price is not None:
+                    p = float(price)
+                    if HOTEL_BASE_PRICE is None or abs(p - HOTEL_BASE_PRICE) > 1e-6:
+                        price_txt = f" • ${p:.2f}"
+            except Exception:
+                pass
+            o.textContent = f"{num} {('• ' + typ) if typ else ''}{cap_txt}{price_txt}"
+            room_select.appendChild(o)
+    except Exception as e:
+        console.log(f"load_available_rooms error: {e}")
+
 def _date_range(ci: str, co: str):
     try:
         s = datetime.date.fromisoformat(ci)
@@ -198,6 +252,8 @@ async def validate_dates(evt=None):
             clear_booking_status()
             if book_btn:
                 book_btn.disabled = False
+        # In all cases where dates parse, try to fill the room list
+        await load_available_rooms(ci, co)
     except Exception:
         # Non-fatal validation failure
         pass
@@ -261,7 +317,15 @@ async def do_booking(evt):
         set_booking_status('Guests must be a positive number', 'error')
         return
         
+    # Include selected room_id if user chose a specific room
+    room_id = ''
+    try:
+        room_id = room_select.value if room_select else ''
+    except Exception:
+        room_id = ''
     payload = { 'hotel_id': hotel_id, 'check_in': ci, 'check_out': co, 'guests': guests }
+    if room_id:
+        payload['room_id'] = room_id
     console.log(f'Booking payload: {payload}')
     
     try:
@@ -302,11 +366,11 @@ async def do_booking(evt):
                     total_fmt = str(total)
                     
                 set_booking_status(f"Booking confirmed • {bk.get('nights','?')} nights • Total ${total_fmt}", 'success')
-                console.log('Redirecting to bookings page in 900ms')
+                console.log('Redirecting to manage bookings page in 900ms')
                 
                 # Redirect to bookings page shortly so the user can see it saved
                 def _redir():
-                    window.location.href = '/bookings'
+                    window.location.href = '/manage-bookings'
                 window.setTimeout(_redir, 900)
             else:
                 err = py.get('error','Booking failed')

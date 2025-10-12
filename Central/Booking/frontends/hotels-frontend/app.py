@@ -50,6 +50,7 @@ app.jinja_loader = ChoiceLoader([
 ])
 
 HOTELS_API_URL = os.getenv('HOTELS_API_URL', 'http://hotels:5001')
+ROOMS_API_URL = os.getenv('ROOMS_API_URL', 'http://rooms:5001')
 USERS_API_URL = os.getenv('USERS_API_URL', 'http://users:5002')
 BOOKINGS_API_URL = os.getenv('BOOKINGS_API_URL', 'http://bookings:5003')
 
@@ -182,6 +183,33 @@ def api_hotel_visibility(hotel_id):
     except Exception:
         return jsonify({'ok': False, 'error': 'Hotels service unavailable'}), 502
 
+# ---- Rooms proxy for hotel pages ----
+@app.route('/api/rooms', methods=['GET','POST'])
+@manager_only
+def api_rooms():
+    try:
+        if request.method == 'GET':
+            r = requests.get(f"{ROOMS_API_URL}/api/rooms", params=request.args, headers=_forward_auth_headers(), timeout=10)
+        else:
+            payload = request.get_json(silent=True) or request.form.to_dict() or {}
+            r = requests.post(f"{ROOMS_API_URL}/api/rooms", json=payload, headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Rooms service unavailable'}), 502
+
+@app.route('/api/rooms/<room_id>', methods=['GET','PATCH'])
+@manager_only
+def api_room_detail_update(room_id):
+    try:
+        if request.method == 'GET':
+            r = requests.get(f"{ROOMS_API_URL}/api/rooms/{room_id}", headers=_forward_auth_headers(), timeout=10)
+        else:
+            payload = request.get_json(silent=True) or {}
+            r = requests.patch(f"{ROOMS_API_URL}/api/rooms/{room_id}", json=payload, headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Rooms service unavailable'}), 502
+
 # ---- Bookings management proxy (manager/admin) ----
 BOOKINGS_API_URL = os.getenv('BOOKINGS_API_URL', 'http://bookings:5003')
 
@@ -204,6 +232,16 @@ def admin_update_booking_status(booking_id):
     except Exception:
         return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
 
+@app.route('/api/admin/bookings/<booking_id>', methods=['DELETE'])
+@manager_only
+def admin_delete_booking(booking_id):
+    """Proxy admin hard-delete to bookings service. Only admin should succeed; backend enforces role."""
+    try:
+        r = requests.delete(f"{BOOKINGS_API_URL}/api/admin/bookings/{booking_id}", headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+
 # Availability proxy (used by dashboards and booking UI)
 @app.get('/api/availability')
 def api_availability():
@@ -212,6 +250,27 @@ def api_availability():
         return jsonify(r.json()), r.status_code
     except Exception:
         return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+    
+@app.get('/api/availability/rooms')
+def api_availability_rooms():
+    try:
+        r = requests.get(f"{BOOKINGS_API_URL}/api/availability/rooms", params=request.args, headers=_forward_auth_headers(), timeout=10)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+
+@app.get('/api/availability/rooms-grid')
+def api_availability_rooms_grid():
+    try:
+        r = requests.get(f"{BOOKINGS_API_URL}/api/availability/rooms-grid", params=request.args, headers=_forward_auth_headers(), timeout=15)
+        return jsonify(r.json()), r.status_code
+    except Exception:
+        return jsonify({'ok': False, 'error': 'Bookings service unavailable'}), 502
+
+@app.get('/hotel-occupancy/<hotel_id>')
+@manager_only
+def hotel_occupancy(hotel_id):
+    return render_template('hotel_occupancy.html', user=current_user(), hotel_id=hotel_id)
     
 @app.route('/health')
 def health():

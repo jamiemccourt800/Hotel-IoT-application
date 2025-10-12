@@ -40,6 +40,32 @@ def can_manage_hotel(actor, hotel_doc):
         return actor.get('username') in managers
     return False
 
+# ---- Rooms count helpers ----
+def _room_counts_for(hotel_ids):
+    """Return a dict of {ObjectId: count} for provided hotel ObjectIds."""
+    counts = {}
+    if not hotel_ids:
+        return counts
+    try:
+        pipeline = [
+            {'$match': {'hotel_id': {'$in': hotel_ids}}},
+            {'$group': {'_id': '$hotel_id', 'count': {'$sum': 1}}},
+        ]
+        for row in db.rooms.aggregate(pipeline):
+            hid = row.get('_id')
+            cnt = int(row.get('count') or 0)
+            counts[hid] = cnt
+    except Exception:
+        # If rooms collection missing or any issue, fall back to empty
+        pass
+    return counts
+
+def _room_count_for(hotel_oid):
+    try:
+        return int(db.rooms.count_documents({'hotel_id': hotel_oid}))
+    except Exception:
+        return int(0)
+
 @app.get('/api/hotels')
 def list_hotels():
     q = (request.args.get('q') or '').strip()
@@ -90,8 +116,12 @@ def list_hotels():
         if sort_spec:
             cursor = cursor.sort(sort_spec)
         cursor = cursor.limit(limit)
+        # materialize to list to compute room counts in bulk
+        hotels = list(cursor)
+        hotel_ids = [h.get('_id') for h in hotels if h.get('_id')]
+        rc_map = _room_counts_for(hotel_ids)
         docs = []
-        for hotel in cursor:
+        for hotel in hotels:
             shaped = {
                 'hotel_id': str(hotel.get('_id')),
                 'name': hotel.get('name', ''),
@@ -106,7 +136,7 @@ def list_hotels():
                 shaped['managers'] = hotel.get('managers', [])
                 shaped['created_by'] = hotel.get('created_by')
                 shaped['created_at'] = hotel.get('created_at')
-                shaped['room_count'] = hotel.get('room_count', 0)
+                shaped['room_count'] = int(rc_map.get(hotel.get('_id'), 0))
             docs.append(shaped)
         return jsonify({'ok': True, 'hotels': docs})
     except Exception:
@@ -240,12 +270,14 @@ def hotel_detail(hotel_id):
             shaped['created_at_iso'] = datetime.datetime.utcfromtimestamp(int(ts)).isoformat() + 'Z'
     except Exception:
         pass
+    # Always compute room_count from rooms collection
+    rc_dynamic = _room_count_for(oid)
     if can_manage_hotel(actor, hotel):
         shaped['managers'] = hotel.get('managers', [])
         shaped['created_by'] = hotel.get('created_by')
-        shaped['room_count'] = hotel.get('room_count', 0)
+        shaped['room_count'] = rc_dynamic
     else:
-        rc = hotel.get('room_count')
+        rc = rc_dynamic
         if isinstance(rc, int) and rc > 0:
             shaped['capacity_hint'] = 'Available'
     return jsonify({'ok': True, 'hotel': shaped})
