@@ -50,7 +50,7 @@ services:
     image: telegraf:latest
     container_name: telegraf
     volumes:
-      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     depends_on:
       - kafka
       - victoria-metrics
@@ -81,14 +81,20 @@ services:
     ports:
       - "5000:5000"
     environment:
-      VICTORIA_METRICS_URL: http://victoria-metrics:8428
       API_PORT: 5000
-      API_DEBUG: "false"
+      KAFKA_BOOTSTRAP: "kafka:9092"
+      KAFKA_TOPIC: "actuator"
+      CLIENT_ID: "fastapi-producer"
+      ACKS: "all"
+      RETRIES: 3
+      LINGER_MS: 5
     depends_on:
       - victoria-metrics
+      - kafka
     networks:
-      - victoriametrics
       - iot-net
+    volumes:
+      - ./command:/app
 
 networks:
   iot-net:
