@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Hotels • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+</head>
+<body>
+  {% include 'spanel.html' %}
+  <main style="max-width:1100px; margin:0 auto; padding:1.5rem clamp(1rem,4vw,3rem) 3rem;">
+    <h1 style="margin:0 0 1.2rem; font-size:1.5rem; letter-spacing:-.5px; display:flex; align-items:center; gap:.65rem;">Manage Hotels</h1>
+    <div id="status" class="status" aria-live="polite"></div>
+    <div class="panel" style="padding:1.2rem 1.3rem 1.8rem;">
+      <div style="display:flex; gap:.6rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.8rem;">
+        <div class="field">
+          <label for="av-start">From</label>
+          <input type="date" id="av-start" />
+        </div>
+        <div class="field">
+          <label for="av-end">To</label>
+          <input type="date" id="av-end" />
+        </div>
+        <button id="btn-refresh" class="u-btn" type="button" style="height:36px;">Refresh</button>
+      </div>
+      <div id="loading" class="loading-overlay">
+        <div class="spinner"><div></div><div></div><div></div><div></div></div>
+        <div class="loading-text">Loading your managed hotels…</div>
+      </div>
+      <div id="empty" class="empty" hidden>No managed hotels yet. <a href="/create-hotel" style="color:var(--accent); text-decoration:none;">Create one →</a></div>
+      <div id="managed-hotels" class="hotel-grid" hidden></div>
+    </div>
+  </main>
+  <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Manage Hotels</footer>
+  <py-config>
+    packages = []
+  </py-config>
+  <py-script src="{{ url_for('static', filename='py/manage_hotels.py') }}"></py-script>
+</body>
+</html>
