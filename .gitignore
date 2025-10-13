@@ -1,18 +1,4 @@
-# Ignore generated data directories and runtime artifacts
-
-# Grafana DB and cache (keep provisioning tracked)
-/central/grafana/data/
-
-# VictoriaMetrics persisted TSDB
+/central/grafana/
+/central/node-red-data/
 /central/victoria-metrics-data/
 
-# General Python caches
-**/__pycache__/
-*.pyc
-
-# VS Code settings (optional keep if project-wide)
-.vscode/
-
-# OS cruft
-.DS_Store
-Thumbs.db
