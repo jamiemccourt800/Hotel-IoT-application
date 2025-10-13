@@ -36,7 +36,7 @@ services:
       retries: 10
 
   simulator:
-    build: ./simulator
+    build: hotel/simulator
     depends_on:
       - mosquitto
     environment:
@@ -46,7 +46,7 @@ services:
       - "5000:5000"
 
   iot-simulator:
-    build: ./iot-simulator
+    build: hotel/room1/iot-simulator
     container_name: iot-simulator
     environment:
       HOTEL_ID: hotel_01
@@ -62,7 +62,7 @@ services:
 
 
   mqtt-to-kafka:
-    build: ./MQTT
+    build: hotel/MQTT
     depends_on:
       mosquitto:
         condition: service_started
