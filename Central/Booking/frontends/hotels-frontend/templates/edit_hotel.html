@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Hotel • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+</head>
+<body>
+  <header>
+    <button id="nav-toggle" class="hamburger" aria-label="Open navigation" aria-expanded="false" aria-controls="side-panel">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="brand"><span class="logo">Booking</span> Portal</div>
+    <div style="flex:1"></div>
+    {% if user %}
+    <div class="user-box">
+      <span class="user-badge">👤 {{ user.display_name }}</span>
+      <button id="logout-btn" class="logout-btn" type="button">Logout</button>
+    </div>
+    {% else %}
+      <a href="/login" class="login-link">Login</a>
+    {% endif %}
+  </header>
+  <div id="panel-overlay" class="panel-overlay" hidden></div>
+  <aside id="side-panel" class="side-panel" aria-hidden="true" tabindex="-1">
+    <div class="panel-header">
+      <div class="ph-brand"><span class="logo">Booking</span> Portal</div>
+      <button id="panel-close" class="panel-close" aria-label="Close navigation">×</button>
+    </div>
+    <nav class="panel-nav">
+      <ul>
+        <li><a href="/">Hotels</a></li>
+        <li><a href="/bookings">My Bookings</a></li>
+        <li><a href="/manage-hotels">Manage Hotels</a></li>
+        {% if user and user.role in ['admin','manager'] %}
+          <li><a href="/create-hotel">Create Hotel</a></li>
+        {% endif %}
+        {% if user %}
+          <li><button type="button" id="panel-logout" class="panel-logout-btn">Log Out</button></li>
+        {% else %}
+          <li><a href="/login">Login</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% if user %}
+    <div class="panel-user">Signed in as <strong>{{ user.display_name }}</strong></div>
+    {% else %}
+    <div class="panel-user muted">Not signed in</div>
+    {% endif %}
+    <div class="panel-footer">© <span id="p-year"></span> Booking Platform</div>
+  </aside>
+  <main style="max-width:820px; margin:0 auto; padding:1.5rem clamp(1rem,4vw,3rem) 3rem;">
+    <h1 style="margin:0 0 1.2rem; font-size:1.4rem; letter-spacing:-.5px; display:flex; align-items:center; gap:.65rem;">Edit Hotel</h1>
+    <div id="status" class="status" aria-live="polite"></div>
+    <div class="panel" style="padding:1.4rem 1.5rem 2rem;">
+      <form id="edit-form" data-hotel-id="{{ hotel_id }}" class="styled-form">
+        <div class="field">
+          <label for="name">Name</label>
+          <div class="input-wrap">
+            <input id="name" type="text" required placeholder="Hotel name" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="city">City</label>
+          <div class="input-wrap">
+            <input id="city" type="text" required placeholder="City" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="country">Country</label>
+          <div class="input-wrap">
+            <input id="country" type="text" required placeholder="Country" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="price">Price / Night</label>
+          <div class="input-wrap">
+            <input id="price" type="number" min="0" step="0.01" required />
+          </div>
+        </div>
+        <div class="field">
+          <label for="image">Image URL</label>
+            <div class="input-wrap">
+              <input id="image" type="text" placeholder="https://..." />
+            </div>
+        </div>
+        <div class="field">
+          <label for="room_count">Room Count</label>
+          <div class="input-wrap">
+            <input id="room_count" type="number" min="0" step="1" />
+          </div>
+        </div>
+        <div class="checkbox-row"><input id="hidden" type="checkbox" /><label for="hidden">Hidden from public listings</label></div>
+        <div style="display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; margin-top:.4rem;">
+          <button class="primary" style="height:46px;" id="save-btn" type="submit">Save Changes</button>
+          <a href="/manage-hotels" class="btn-secondary" style="text-decoration:none; height:46px; display:inline-flex; align-items:center;">← Back</a>
+        </div>
+      </form>
+    </div>
+  <div id="rooms" class="panel" style="padding:1.4rem 1.5rem 2rem; margin-top:1rem;">
+      <h2 style="margin:0 0 .8rem; font-size:1rem; letter-spacing:.02em;">Rooms</h2>
+      <div id="rooms-status" class="status" aria-live="polite"></div>
+      <form id="rooms-form" class="styled-form" onsubmit="return false;">
+      <div style="display:flex; gap:.8rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:.6rem;">
+        <div class="field">
+          <label for="new_room_number">Room #</label>
+          <div class="input-wrap">
+            <input id="new_room_number" type="text" placeholder="e.g. 101" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_type">Type</label>
+          <div class="input-wrap">
+            <input id="new_room_type" type="text" list="room_type_options" placeholder="single, double, twin, family, suite" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_capacity">Capacity</label>
+          <div class="input-wrap">
+            <input id="new_room_capacity" type="number" min="0" />
+          </div>
+        </div>
+        <div class="field">
+          <label for="new_room_price">Price / Night</label>
+          <div class="input-wrap">
+            <input id="new_room_price" type="number" min="0" step="0.01" />
+          </div>
+        </div>
+        <button id="add-room-btn" class="primary" type="button" style="height:40px;">Add Room</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="rooms-table">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Room #</th>
+              <th style="text-align:left;">Type</th>
+              <th>Capacity</th>
+              <th>Price</th>
+              <th style="width:120px;">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <datalist id="room_type_options">
+        <option value="single"></option>
+        <option value="double"></option>
+        <option value="twin"></option>
+        <option value="family"></option>
+        <option value="suite"></option>
+      </datalist>
+      </form>
+    </div>
+  </main>
+  <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Edit Hotel</footer>
+  <py-config>
+    packages = []
+  </py-config>
+  <py-script src="{{ url_for('static', filename='py/panel.py') }}"></py-script>
+  <py-script src="{{ url_for('static', filename='py/edit_hotel.py') }}"></py-script>
+  <script>
+    // Minimal JS additions to load and manage rooms
+    (function(){
+      const hotelId = document.getElementById('edit-form')?.getAttribute('data-hotel-id');
+      const tbody = document.querySelector('#rooms-table tbody');
+      const status = document.getElementById('rooms-status');
+      function setRoomsStatus(msg, kind='error'){ if(status){ status.className = `status show ${kind}`; status.textContent = msg; } }
+      function clearRoomsStatus(){ if(status){ status.className = 'status'; status.textContent = ''; } }
+      async function loadRooms(){
+        if(!hotelId) return;
+        try{
+          const res = await fetch(`/api/rooms?hotel_id=${encodeURIComponent(hotelId)}`);
+          const data = await res.json();
+          tbody.innerHTML='';
+          if(!data.ok){ setRoomsStatus(data.error||'Failed to load rooms'); return; }
+          (data.rooms||[]).forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <div class="input-wrap">
+                  <input data-field="room_number" data-id="${r._id}" value="${r.room_number||''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input data-field="type" list="room_type_options" data-id="${r._id}" value="${r.type||''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input type="number" min="0" data-field="capacity" data-id="${r._id}" value="${r.capacity??''}" />
+                </div>
+              </td>
+              <td>
+                <div class="input-wrap">
+                  <input type="number" step="0.01" min="0" data-field="price_per_night" data-id="${r._id}" value="${r.price_per_night??''}" />
+                </div>
+              </td>
+              <td><button class="primary" type="button" style="height:36px;" data-action="save" data-id="${r._id}">Save</button></td>`;
+            tbody.appendChild(tr);
+          });
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      async function addRoom(){
+        clearRoomsStatus();
+        const rn = document.getElementById('new_room_number').value.trim();
+        if(!rn){ setRoomsStatus('Room number required'); return; }
+        const payload = {
+          hotel_id: hotelId,
+          room_number: rn,
+          type: document.getElementById('new_room_type').value.trim()||undefined,
+          capacity: document.getElementById('new_room_capacity').value.trim()||undefined,
+          price_per_night: document.getElementById('new_room_price').value.trim()||undefined
+        };
+        Object.keys(payload).forEach(k=>{ if(payload[k]===undefined||payload[k]==='') delete payload[k]; });
+        try{
+          const res = await fetch('/api/rooms', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+          const data = await res.json();
+          if(!res.ok || !data.ok){ setRoomsStatus(data.error||'Failed to add room'); return; }
+          setRoomsStatus('Room added', 'success');
+          document.getElementById('new_room_number').value='';
+          document.getElementById('new_room_type').value='';
+          document.getElementById('new_room_capacity').value='';
+          document.getElementById('new_room_price').value='';
+          loadRooms();
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      async function saveRoom(roomId, row){
+        clearRoomsStatus();
+        const inputs = row.querySelectorAll('input[data-field]');
+        const payload = {};
+        inputs.forEach(inp=>{ const v = inp.value; if(v!=='' && v!=null){ payload[inp.getAttribute('data-field')] = v; } });
+        if(Object.keys(payload).length===0){ setRoomsStatus('No changes','info'); return; }
+        try{
+          const res = await fetch(`/api/rooms/${roomId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+          const data = await res.json();
+          if(!res.ok || !data.ok){ setRoomsStatus(data.error||'Update failed'); return; }
+          setRoomsStatus('Room saved','success');
+          loadRooms();
+        }catch(e){ setRoomsStatus(String(e)); }
+      }
+      document.getElementById('add-room-btn')?.addEventListener('click', addRoom);
+      document.getElementById('rooms-table')?.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button[data-action="save"]');
+        if(!btn) return;
+        const roomId = btn.getAttribute('data-id');
+        const row = btn.closest('tr');
+        saveRoom(roomId, row);
+      });
+      loadRooms();
+    })();
+  </script>
+</body>
+</html>

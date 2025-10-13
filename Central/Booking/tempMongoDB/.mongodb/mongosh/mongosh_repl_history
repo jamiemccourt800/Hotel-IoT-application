@@ -1,0 +1,25 @@
+db.users.find()
+db.users.deleteMany({username: 'admin'})
+db.record.deleteMany({username: 'admin'})
+db.record.deleteOne({username: 'admin'})
+db.users.find()
+db.record.deleteOne({username: 'admin'})
+db.record.deleteOne()
+db.deleteOne()
+db.record.remove()
+db.users.find()
+db.hotels.find()
+show collections
+use bookings
+show dbs
+showdbs
+show dbs
+show collections
+use admin
+show dbs
+show collections
+use bookings
+show dbs
+exit
+login
+show dbs

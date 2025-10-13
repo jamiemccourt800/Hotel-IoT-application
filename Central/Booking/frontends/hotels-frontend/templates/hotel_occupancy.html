@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Occupancy • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+</head>
+<body>
+  {% include 'spanel.html' %}
+  <main style="max-width:1000px; margin:0 auto; padding:1.5rem clamp(1rem,4vw,3rem) 3rem;">
+    <h1 style="margin:0 0 1rem; font-size:1.2rem; letter-spacing:-.3px;">Room Occupancy</h1>
+    <div class="panel" style="padding:1rem 1.25rem 1.25rem;">
+      <form id="range-form" class="styled-form" style="gap:.9rem;">
+        <input type="hidden" id="hotel_id" value="{{ hotel_id }}" />
+        <div class="field" style="max-width:220px;">
+          <label for="start">Start</label>
+          <div class="input-wrap"><input type="date" id="start" required /></div>
+        </div>
+        <div class="field" style="max-width:220px;">
+          <label for="end">End</label>
+          <div class="input-wrap"><input type="date" id="end" required /></div>
+        </div>
+        <div><button id="load-grid" class="primary" type="submit" style="height:42px;">Load</button></div>
+        <div id="status" class="status" aria-live="polite"></div>
+      </form>
+      <div class="table-wrap" style="margin-top:1rem;">
+        <table class="data-table" id="grid-table"></table>
+      </div>
+    </div>
+  </main>
+  <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Occupancy</footer>
+
+  <py-config>
+    packages = []
+  </py-config>
+  <py-script>
+from js import document, fetch
+import datetime, asyncio
+
+hid = document.getElementById('hotel_id').value
+start_el = document.getElementById('start')
+end_el = document.getElementById('end')
+status_el = document.getElementById('status')
+table = document.getElementById('grid-table')
+
+# Defaults: next 14 days
+try:
+    today = datetime.date.today()
+    start_el.value = today.isoformat()
+    end_el.value = (today + datetime.timedelta(days=14)).isoformat()
+except Exception:
+    pass
+
+def set_status(msg, kind='error'):
+    status_el.className = f'status show {kind}'
+    status_el.textContent = msg
+
+def clear_status():
+    status_el.className = 'status'
+    status_el.textContent = ''
+
+async def load_grid(evt=None):
+    if evt: evt.preventDefault()
+    clear_status()
+    s = start_el.value
+    e = end_el.value
+    if not s or not e:
+        set_status('Select start and end dates')
+        return
+    try:
+        resp = await fetch(f"/api/availability/rooms-grid?hotel_id={hid}&start={s}&end={e}")
+        data = await resp.json()
+        py = data.to_py()
+        if not py.get('ok'):
+            set_status(py.get('error','Failed to load grid'))
+            return
+        dates = py.get('dates') or []
+        rows = py.get('rows') or []
+        # Render table
+        table.innerHTML = ''
+        # Header
+        thead = document.createElement('thead')
+        trh = document.createElement('tr')
+        th_room = document.createElement('th')
+        th_room.textContent = 'Room'
+        trh.appendChild(th_room)
+        for d in dates:
+            th = document.createElement('th')
+            th.textContent = d[5:]  # MM-DD
+            trh.appendChild(th)
+        thead.appendChild(trh)
+        table.appendChild(thead)
+        # Body
+        tbody = document.createElement('tbody')
+        for r in rows:
+            tr = document.createElement('tr')
+            td0 = document.createElement('td')
+            rn = r.get('room_number') or ''
+            rt = r.get('type') or ''
+            td0.textContent = f"{rn} {('• ' + rt) if rt else ''}"
+            tr.appendChild(td0)
+            cells = r.get('cells') or []
+            for booked in cells:
+                td = document.createElement('td')
+                td.style.textAlign = 'center'
+                td.style.fontSize = '.75rem'
+                td.textContent = '•'
+                if booked:
+                    td.style.background = 'rgba(239,68,68,.18)'
+                    td.style.color = '#fca5a5'
+                    td.title = 'Booked'
+                else:
+                    td.style.background = 'rgba(16,185,129,.12)'
+                    td.style.color = '#6ee7b7'
+                    td.title = 'Available'
+                tr.appendChild(td)
+            tbody.appendChild(tr)
+        table.appendChild(tbody)
+    except Exception as e:
+        set_status(str(e))
+
+form = document.getElementById('range-form')
+form.addEventListener('submit', load_grid)
+asyncio.ensure_future(load_grid())
+
+# Footer year
+try:
+    document.getElementById('year').textContent = str(datetime.datetime.now().year)
+except Exception:
+    pass
+  </py-script>
+</body>
+</html>
