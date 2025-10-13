@@ -188,7 +188,7 @@ def on_message(client, userdata, msg):
         message = json.loads(payload) if payload.startswith("{") else {"payload": payload}
 
         topic = msg.topic
-        timestamp = int(time.time())
+        timestamp = int(time.time() * 1000)
         # Branch by topic namespace
         if topic.startswith("sensors/"):
             # Extract sensor values
