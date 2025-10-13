@@ -98,7 +98,7 @@ services:
       - "85:80"
     volumes:
       - ./booking/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./main/static:/usr/share/nginx/html/static:ro
+      - ./booking/main/static:/usr/share/nginx/html/static:ro
     depends_on:
       - hotels-frontend
       - users-frontend
@@ -165,9 +165,9 @@ services:
       - USERS_API_URL=http://users:5002
       - BOOKINGS_API_URL=http://bookings:5003
     volumes:
-      - ./frontends/hotels-frontend:/app
-      - ./main/template:/app/templates_upstream:ro
-      - ./main/static:/app/static_upstream:ro
+      - ./booking/frontends/hotels-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
     depends_on:
       - hotels
       - rooms
@@ -181,9 +181,9 @@ services:
       - SECRET_KEY=devops_booking
       - USERS_API_URL=http://users:5002
     volumes:
-      - ./frontends/users-frontend:/app
-      - ./main/template:/app/templates_upstream:ro
-      - ./main/static:/app/static_upstream:ro
+      - ./booking/frontends/users-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
     depends_on:
       - users
   bookings-frontend:
@@ -194,9 +194,9 @@ services:
       - SECRET_KEY=devops_booking
       - BOOKINGS_API_URL=http://bookings:5003
     volumes:
-      - ./frontends/bookings-frontend:/app
-      - ./main/template:/app/templates_upstream:ro
-      - ./main/static:/app/static_upstream:ro
+      - ./booking/frontends/bookings-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
     depends_on:
       - bookings
   
@@ -207,7 +207,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./tempMongoDB:/data/db
+      - ./booking/tempMongoDB:/data/db
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 1Password!
