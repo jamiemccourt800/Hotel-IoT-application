@@ -1,5 +1,6 @@
 Flask==3.0.0
 requests==2.31.0
-gunicorn==21.2.0
-paho-mqtt==1.6.1
-fastapi==0.100.0
+confluent_kafka==2.12.0
+uvicorn==0.37.0
+fastapi==0.119.0
+aiokafka==0.12.0

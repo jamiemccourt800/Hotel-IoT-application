@@ -1,60 +1,53 @@
-import json
+from contextlib import asynccontextmanager
 
-import paho.mqtt.client as mqtt
-from datetime import datetime
-import os
+from fastapi import FastAPI, BackgroundTasks
+from pydantic import BaseModel
+import logging
+from kafka_producer import start_producer, stop_producer, send_message
+from config import config
+from routes.health import health_check
+import json, uuid, time
 
-from fastapi import FastAPI
+logger = logging.getLogger("app")
+logger.setLevel(logging.INFO)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await start_producer()
+    msg = "App startup at " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    logger.info(msg)
+    yield
+    await stop_producer()
+    msg = "App ended at " + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    logger.info(msg)
 
-MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-
-def get_mqtt_client():
-    client = mqtt.Client()
-    client.connect(MQTT_BROKER, MQTT_PORT, 2)
-    return client
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/health")
-def health_check():
-    client = mqtt.Client()
-    try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 2)
-        client.disconnect()
-        return {"status": "healthy"}
-    except Exception as e:
-        return {"status": "unhealthy", "error": str(e)}
+async def health():
+    return await health_check()
 
-@app.post("{hotel_id}/actuators/{room_number}/thermostat")
-def set_temperature(hotel_id: str, room_number: int, temperature: float = None):
+
+@app.post("/send_command/{hotel_id}/{room_number}/temperature/{value}")
+async def send_command(
+    hotel_id: str,
+    room_number: int,
+    value: float,
+):
     """
-    Set the target temperature for a room's thermostat.
+    Send a command to a specific device in a hotel room.
 
     Args:
-        room_number (int): The room number to set the thermostat for.
-
-    Request Body (form-data):
-        temperature (float): The target temperature to set.
-
+        hotel_id (str): The ID of the hotel.
+        room_number (int): The room number.
+        value (float): The value associated with the command.
     Returns:
-        dict: Status of the operation and the target temperature if successful,
-              or error details if failed.
-              :param hotel_id:
-              :param room_number:
-              :param temperature:
+        dict: A dictionary indicating success or failure.
     """
-    from flask import request
-    # set the temperature topics
-    thermostat_topic = f"actuators/{hotel_id}/{room_number}/thermostat"
-    thermometer_topic = f"sensors/{hotel_id}/{room_number}/thermometer"
+    from routes.actuator import set_temperature
+    try:
+        return await set_temperature(hotel_id, room_number, value)
+    except Exception as e:
+        logger.error(f"Error in send_command: {e}", exc_info=True)
+        return {"status": "fail", "error": str(e)}
 
-    # publish the temperature to the MQTT broker
-    if get_mqtt_client().publish(thermostat_topic, temperature):
-        return {"status": "success", "target_temperature": temperature}
-
-    else:
-        # publish updated temperature to the MQTT broker to get the data in DB,
-        # although this has to be done the way the thermostat and thermometer are different devices
-        # get_mqtt_client().publish(thermometer_topic, json.dumps({"get": "temperature"}))
-        return {"status": "error", "error": "Failed to publish temperature to MQTT broker"}
