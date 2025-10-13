@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotel Detail • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {% include 'spanel.html' %}
+  <main style="max-width:960px; margin:0 auto; padding:1.5rem clamp(1rem,4vw,3rem) 3rem;">
+    <div id="status" class="status" aria-live="polite"></div>
+    <div id="detail-wrapper" class="panel" style="min-height:200px;">
+      <div class="skeleton" id="loading-skel">Loading hotel...</div>
+      <div id="hotel-detail" data-hotel-id="{{ hotel_id }}" hidden>
+        <div class="detail-head">
+          <div class="detail-hero">
+            <img id="hero-img" alt="Hotel image" />
+          </div>
+          <div class="detail-meta">
+            <h1 id="hotel-name"></h1>
+            <div id="hotel-location" class="muted"></div>
+            <div id="hotel-price" class="price-tag"></div>
+            {% if user.role == 'manager' or user.role == 'admin' %}
+            <div id="hotel-capacity" class="muted" style="margin-top:.25rem;"></div>
+            <div id="hotel-managers" class="muted small" style="margin-top:.35rem;"></div>
+            <div id="hotel-created" class="muted tiny" style="margin-top:.35rem;"></div>
+            {% endif %}
+          </div>
+        </div>
+        <hr class="divider" />
+        {% if user and user.role == 'guest' %}
+        <form id="booking-form" style="margin-top:1.5rem; display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-start; background:var(--panel-alt,#101418); padding:1rem 1.25rem; border-radius:.75rem" method="post" action="/api/bookings">
+          <!-- Non-JS fallback: include hotel_id so form post works without PyScript -->
+          <input type="hidden" name="hotel_id" value="{{ hotel_id }}" />
+          <div class="field" style="flex:1; min-width:200px;">
+            <label for="check_in">Check In</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 2v3M17 2v3M3 9h18M5 13h4M5 17h4M11 13h4m-4 4h4M5 5h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <input type="date" id="check_in" name="check_in" required />
+            </div>
+          </div>
+          <div class="field" style="flex:1; min-width:200px;">
+            <label for="check_out">Check Out</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7 2v3M17 2v3M3 9h18M5 13h4M5 17h4M11 13h4m-4 4h4M5 5h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <input type="date" id="check_out" name="check_out" required />
+            </div>
+          </div>
+          <div class="field" style="width:130px;">
+            <label for="guests">Guests</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 13c2.761 0 5-2.239 5-5S14.761 3 12 3 7 5.239 7 8s2.239 5 5 5Zm0 2c-3.333 0-10 1.667-10 5v1h20v-1c0-3.333-6.667-5-10-5Z"/></svg>
+              <input type="number" id="guests" name="guests" min="1" value="1" required />
+            </div>
+          </div>
+          <div class="field" style="flex:1; min-width:220px;">
+            <label for="room_select">Room</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16v13H4z" stroke="currentColor" stroke-width="1.4"/><path d="M9 21v-4m6 4v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <select id="room_select" name="room_id">
+                <option value="">Any available room</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex; gap:.6rem; align-items:flex-end; padding-top:.3rem;">
+            <button class="primary" id="book-btn" title="Create booking" style="height:42px;">Book Now</button>
+            <a href="/" class="btn-secondary" style="text-decoration:none; height:42px; display:inline-flex; align-items:center;">← Back</a>
+          </div>
+          <div id="booking-status" class="status" style="flex:1 1 100%; margin-top:.25rem;" aria-live="polite"></div>
+        </form>
+        {% elif user %}
+        <div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:.75rem; background:var(--panel-alt,#101418);">
+          <div class="status show info" aria-live="polite">Only guest accounts can make bookings. Switch to a guest account to book this hotel.</div>
+          <div style="margin-top:.75rem;"><a href="/" class="btn-secondary" style="text-decoration:none;">← Back</a></div>
+        </div>
+        {% else %}
+        <div class="panel" style="margin-top:1.5rem; padding:1rem 1.25rem; border-radius:.75rem; background:var(--panel-alt,#101418);">
+          <button class="u-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="window.location.href='/login'">Log In To Book &rarr;</button>
+          <div style="margin-top:.75rem;"><a href="/" class="btn-secondary" style="text-decoration:none;">← Back</a></div>
+        </div>
+        {% endif %}
+        <section id="map-section" style="margin-top:2rem;">
+          <h2 style="margin:0 0 .75rem; font-size:.9rem; letter-spacing:.12em; text-transform:uppercase;">Location Map</h2>
+          <div class="map-frame" style="border:1px solid #223; border-radius:.75rem; overflow:hidden; background:#0c1116; height:150px; position:relative;">
+            <iframe id="hotel-map" title="Hotel location map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%; height:100%; border:0; display:none;"></iframe>
+            <div id="map-placeholder" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:.75rem; letter-spacing:.12em; color:var(--text-dim);">Loading map…</div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Hotel Detail</footer>
+
+  <py-config>
+    packages = []
+  </py-config>
+  <py-script src="{{ url_for('static', filename='py/hotel_detail.py') }}"></py-script>
+  
+</body>
+</html>

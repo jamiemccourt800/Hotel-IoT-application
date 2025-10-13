@@ -93,6 +93,134 @@ services:
       - victoriametrics
       - iot-net
 
+  ## BOOKING SYSTEM
+  
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "85:80"
+    volumes:
+      - ./booking/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./booking/main/static:/usr/share/nginx/html/static:ro
+    depends_on:
+      - hotels-frontend
+      - users-frontend
+      - bookings-frontend
+      - hotels
+      - users
+      - bookings
+  hotels:
+    build: ./booking/backend/hotels
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASS=1Password!
+      - MONGO_DB=bookings
+    depends_on:
+      - mongodb
+  rooms:
+    build: ./booking/backend/rooms
+    ports:
+      - "5004:5001" 
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASS=1Password!
+      - MONGO_DB=bookings
+    depends_on:
+      - mongodb
+  users:
+    build: ./booking/backend/users
+    ports:
+      - "5002:5002"
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASS=1Password!
+      - MONGO_DB=bookings
+    depends_on:
+      - mongodb
+  bookings:
+    build: ./booking/backend/bookings
+    ports:
+      - "5003:5003"
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - MONGO_USER=root
+      - MONGO_PASS=1Password!
+      - MONGO_DB=bookings
+    depends_on:
+      - mongodb
+  hotels-frontend:
+    build: ./booking/frontends/hotels-frontend
+    ports:
+      - "5100:5100"
+    environment:
+      - SECRET_KEY=devops_booking
+      - HOTELS_API_URL=http://hotels:5001
+      - ROOMS_API_URL=http://rooms:5001
+      - USERS_API_URL=http://users:5002
+      - BOOKINGS_API_URL=http://bookings:5003
+    volumes:
+      - ./booking/frontends/hotels-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
+    depends_on:
+      - hotels
+      - rooms
+      - users
+      - bookings
+  users-frontend:
+    build: ./booking/frontends/users-frontend
+    ports:
+      - "5200:5200"
+    environment:
+      - SECRET_KEY=devops_booking
+      - USERS_API_URL=http://users:5002
+    volumes:
+      - ./booking/frontends/users-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
+    depends_on:
+      - users
+  bookings-frontend:
+    build: ./booking/frontends/bookings-frontend
+    ports:
+      - "5300:5300"
+    environment:
+      - SECRET_KEY=devops_booking
+      - BOOKINGS_API_URL=http://bookings:5003
+    volumes:
+      - ./booking/frontends/bookings-frontend:/app
+      - ./booking/main/template:/app/templates_upstream:ro
+      - ./booking/main/static:/app/static_upstream:ro
+    depends_on:
+      - bookings
+  
+  mongodb:
+    image: mongodb/mongodb-community-server:latest
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./booking/tempMongoDB:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: 1Password!
+      MONGO_INITDB_DATABASE: bookings
+
+
+volumes:
+  mongodb:
+    external: true
+
 networks:
   iot-net:
     external: true
