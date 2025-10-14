@@ -1,52 +1,13 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Hotel/Room Dashboard</title>
-  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-  <style>
-    body { font-family: sans-serif; }
-    .room-card {
-      border: 1px solid #ccc;
-      padding: 1em;
-      margin: 1em;
-      display: inline-block;
-      width: 200px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Hotel Room Dashboard</h1>
-  <div id="dashboard"></div>
-
-  <script>
-    // Use current origin's host for socket target; simulator is exposed on port 5000
-    const host = window.location.hostname || 'localhost';
-    const socket = io(`http://${host}:5000`);
-
-    const dashboard = document.getElementById("dashboard");
-    const rooms = {}; // track room state by hotel/room
-
-    socket.on("state_update", (data) => {
-      const key = `${data.hotel_id}-${data.room}`;
-      rooms[key] = data;
-
-      render();
-    });
-
-    function render() {
-      dashboard.innerHTML = "";
-      Object.values(rooms).forEach(roomData => {
-        const div = document.createElement("div");
-        div.className = "room-card";
-        div.innerHTML = `
-          <h3>${roomData.hotel_id} - Room ${roomData.room}</h3>
-          <p>Temperature: ${roomData.state.temperature.toFixed(1)}°C</p>
-          <p>Target: ${roomData.state.target_temperature.toFixed(1)}°C</p>
-          <p>Light: ${roomData.state.light ? "ON" : "OFF"}</p>
-        `;
-        dashboard.appendChild(div);
-      });
-    }
-  </script>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
