@@ -7,8 +7,53 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  // Inline JS ported from static/py/login.py
+  (function(){
+    const API_LOGIN = '/login?ajax=1';
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('submit-btn');
+    const labelSpan = btn ? btn.querySelector('.btn-label') : null;
+
+    function setStatus(message, kind){ if(!statusEl) return; statusEl.className = 'status show ' + kind; statusEl.innerHTML = message; }
+    function clearStatus(){ if(!statusEl) return; statusEl.className='status'; statusEl.innerHTML=''; }
+
+    async function handleSubmit(evt){
+      evt.preventDefault(); clearStatus();
+      const form = document.getElementById('login-form'); if(!form){ setStatus('Form not found', 'error'); return; }
+      const username = (form.username.value||'').trim(); const password = form.password.value||'';
+      if(username.length < 3){ setStatus('Username must be at least 3 characters', 'error'); return; }
+      if(password.length < 6){ setStatus('Password must be at least 6 characters', 'error'); return; }
+      if(btn){ btn.disabled = true; if(labelSpan) labelSpan.innerHTML = 'Signing in...'; }
+      try{
+        const resp = await fetch(API_LOGIN, { method:'POST', headers:{ 'Content-Type':'application/json', 'Accept':'application/json','X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify({username, password}), redirect:'manual', credentials:'same-origin' });
+        if(resp.status === 302){ window.location.href = '/'; return; }
+        if(resp.status === 401){ setStatus('Invalid username or password', 'error'); return; }
+        if(resp.status !== 200){ setStatus(`Server error: ${resp.status}`, 'error'); return; }
+        const ctype = resp.headers && resp.headers.get ? resp.headers.get('Content-Type') : '';
+        if(!ctype || ctype.toLowerCase().indexOf('application/json') === -1){
+          const preview = await resp.text().catch(()=> '');
+          const snip = preview.length>160? preview.slice(0,160)+'…': preview;
+          setStatus(`Unexpected non-JSON response (status ${resp.status}). Preview: ${snip}`, 'error');
+          return;
+        }
+        const data = await resp.json();
+        const result = data || {};
+        if(result.ok){ setStatus('Login successful! Redirecting...', 'success'); await new Promise(r=>setTimeout(r,500)); window.location.href = '/'; }
+        else{ setStatus(result.error || 'Login failed', 'error'); }
+      }catch(e){ setStatus('Error: ' + e, 'error'); }
+      finally{ if(btn){ btn.disabled = false; if(labelSpan) labelSpan.innerHTML = 'Sign In'; } }
+    }
+
+    // Attach on DOM load
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', ()=>{ const form = document.getElementById('login-form'); if(form) form.addEventListener('submit', handleSubmit); });
+    } else {
+      const form = document.getElementById('login-form'); if(form) form.addEventListener('submit', handleSubmit);
+    }
+    try{ document.getElementById('year').innerHTML = new Date().getFullYear(); }catch(e){}
+  })();
+  </script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="login-page">

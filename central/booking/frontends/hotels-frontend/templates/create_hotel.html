@@ -8,9 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
-    <!-- PyScript assets -->
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-    <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+    <!-- Client-side JS (replaces PyScript) -->
  </head>
 <body>
     {% include 'spanel.html' %}
@@ -97,10 +95,125 @@
     </main>
     <footer style="padding:2rem 0 3rem; text-align:center; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Create Hotel</footer>
 
-    <py-config>
-        packages = []
-    </py-config>
-    
-    <py-script src="{{ url_for('static', filename='py/create_hotel.py') }}"></py-script>
+    <!-- Inline JS ported from create_hotel.py -->
+    <script>
+    (function(){
+        const API_CREATE = '/api/hotels/create';
+        const API_USERS = '/api/users';
+        const form = document.getElementById('create-hotel-form');
+        const statusEl = document.getElementById('status');
+        const btn = document.getElementById('submit-btn');
+        const picker = document.getElementById('manager-picker');
+        const addBtn = document.getElementById('add-manager-btn');
+        const chipsEl = document.getElementById('managers-chips');
+        const hiddenManagers = document.getElementById('managers');
+
+        function setStatus(msg, kind='error'){
+            if(!statusEl) return;
+            statusEl.className = 'status show ' + kind;
+            statusEl.textContent = msg;
+        }
+        function clearStatus(){ if(statusEl){ statusEl.className='status'; statusEl.textContent=''; } }
+
+        function serialize(){
+            if(!form) return {};
+            const payload = {
+                name: form.name.value.trim(),
+                city: form.city.value.trim(),
+                country: form.country.value.trim(),
+                price_per_night: form.price_per_night.value.trim(),
+                image: form.image.value.trim(),
+            };
+            if(form.room_count && form.room_count.value.trim() !== '') payload.room_count = form.room_count.value.trim();
+            if(hiddenManagers && hiddenManagers.value.trim()){
+                payload.managers = hiddenManagers.value.split(',').map(s=>s.trim()).filter(Boolean);
+            }
+            return payload;
+        }
+
+        async function submitHandler(evt){
+            evt.preventDefault();
+            clearStatus();
+            const payload = serialize();
+            // basic required check
+            if(!payload.name || !payload.city || !payload.country || !payload.price_per_night || !payload.image){
+                setStatus('All fields are required.', 'error');
+                return;
+            }
+            if(btn){ btn.disabled = true; btn.classList.add('loading'); }
+            try{
+                const resp = await fetch(API_CREATE, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                const text = await resp.text();
+                let data = {};
+                try{ data = JSON.parse(text); }catch(e){ setStatus('Unexpected response format', 'error'); return; }
+                if((resp.status>=200 && resp.status<300 && data.ok) || data.hotel_id){
+                    setStatus(data.message || 'Hotel created! Redirecting...', 'success');
+                    setTimeout(()=> window.location.href='/', 1100);
+                } else {
+                    setStatus(data.error || 'Failed to create hotel', 'error');
+                }
+            }catch(e){ setStatus('Network or server error: ' + e, 'error'); }
+            finally{ if(btn){ btn.disabled = false; btn.classList.remove('loading'); } }
+        }
+
+        // Manager picker logic
+        let selectedMgrs = new Set();
+        function renderChips(){
+            if(!chipsEl) return;
+            chipsEl.innerHTML = '';
+            const arr = Array.from(selectedMgrs).sort();
+            for(const uname of arr){
+                const span = document.createElement('span');
+                span.className = 'user-badge';
+                span.style.display = 'inline-flex';
+                span.style.alignItems = 'center';
+                span.style.gap = '.35rem';
+                span.textContent = uname;
+                const rm = document.createElement('button');
+                rm.textContent = '\u00d7';
+                rm.setAttribute('aria-label', `Remove ${uname}`);
+                rm.style.background='transparent'; rm.style.border='none'; rm.style.cursor='pointer'; rm.style.color='var(--text-dim)';
+                rm.addEventListener('click', ()=>{ selectedMgrs.delete(uname); renderChips(); });
+                span.appendChild(rm);
+                chipsEl.appendChild(span);
+            }
+            if(hiddenManagers){ hiddenManagers.value = arr.join(','); }
+        }
+
+        async function loadUsers(){
+            if(!picker) return;
+            try{
+                const resp = await fetch(API_USERS, { headers: { 'Accept': 'application/json' } });
+                const text = await resp.text();
+                const data = JSON.parse(text || '{}');
+                const options = [];
+                if(data.ok && Array.isArray(data.users)){
+                    for(const u of data.users){
+                        const role = (u.role||'').toLowerCase();
+                        if(role==='admin' || role==='manager') options.push({username: u.username, display_name: u.display_name||u.username});
+                    }
+                }
+                picker.innerHTML = '';
+                const ph = document.createElement('option'); ph.value=''; ph.textContent='Select a manager to add'; ph.disabled=true; ph.selected=true; picker.appendChild(ph);
+                for(const opt of options){ const el = document.createElement('option'); el.value = opt.username; el.textContent = `${opt.display_name} (${opt.username})`; picker.appendChild(el); }
+            }catch(e){ picker.innerHTML=''; const err = document.createElement('option'); err.value=''; err.textContent='Failed to load users'; err.disabled=true; err.selected=true; picker.appendChild(err); }
+        }
+
+        function addSelectedMgr(){ if(!picker) return; const u = (picker.value||'').trim(); if(!u) return; if(selectedMgrs.has(u)) return; selectedMgrs.add(u); renderChips(); picker.value=''; }
+
+        if(form){ form.addEventListener('submit', submitHandler); }
+        if(addBtn){ addBtn.addEventListener('click', addSelectedMgr); }
+        if(picker){ picker.addEventListener('change', addSelectedMgr); }
+        loadUsers();
+        renderChips();
+
+        // autofill from query params (like PyScript version did)
+        try{
+            const params = new URLSearchParams(window.location.search);
+            ['name','city','country','price_per_night','image','room_count'].forEach(k => { if(params.has(k) && form && form[k]) form[k].value = params.get(k); });
+        }catch(e){ /* ignore */ }
+        try{ document.getElementById('year').textContent = new Date().getFullYear(); }catch(e){}
+    })();
+    </script>
 </body>
 </html>

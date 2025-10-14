@@ -8,8 +8,51 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  (function(){
+    const API_LIST = '/api/bookings';
+    const API_CANCEL = '/api/bookings';
+    const statusEl = document.getElementById('bookings-status');
+    const listEl = document.getElementById('bookings-list');
+    const emptyEl = document.getElementById('empty');
+    const loadingEl = document.getElementById('loading');
+
+    function setStatus(msg, kind='error'){ if(statusEl){ statusEl.className = 'status show ' + kind; statusEl.textContent = msg; } }
+    function clearStatus(){ if(statusEl){ statusEl.className='status'; statusEl.textContent=''; } }
+    function fmtDate(s){ return s || ''; }
+    function escapeHtml(s){ return (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+
+    async function loadBookings(){ clearStatus(); try{ const r = await fetch(API_LIST); if(!r.ok){ setStatus(`Failed to load bookings (${r.status})`, 'error'); return; } const data = await r.json(); if(!data.ok){ setStatus(data.error || 'Load failed','error'); return; } const bookings = data.bookings || []; if(loadingEl) loadingEl.remove(); if(!bookings.length){ if(emptyEl) emptyEl.hidden = false; return; } if(listEl){ listEl.hidden = false; listEl.innerHTML = ''; bookings.forEach(b => listEl.appendChild(renderBooking(b))); } }catch(e){ setStatus('Error: ' + e, 'error'); } }
+
+    async function cancelBooking(evt, bookingId, wrapper, btnEl){ evt.preventDefault(); if(!confirm('Cancel this booking?')) return; try{ const btn = btnEl || evt.currentTarget || evt.target; if(btn){ btn.disabled = true; btn.textContent = 'Cancelling…'; } const r = await fetch(`${API_CANCEL}/${bookingId}`, { method: 'DELETE' }); const ctype = r.headers && r.headers.get ? r.headers.get('Content-Type') : ''; if(!r.ok){ let msg = `Cancel failed (${r.status})`; if(ctype && ctype.indexOf('application/json')!==-1){ try{ const j = await r.json(); if(j && j.error) msg = j.error; }catch(e){} } setStatus(msg,'error'); if(btn){ btn.disabled=false; btn.textContent='Cancel'; } return; } if(ctype && ctype.indexOf('application/json')!==-1){ const j = await r.json(); if(!j.ok){ setStatus(j.error || 'Cancel failed','error'); if(btn){ btn.disabled=false; btn.textContent='Cancel'; } return; } }
+      // update UI
+      const st = wrapper.querySelector('.bk-status'); if(st){ st.textContent = 'Cancelled'; st.classList.remove('confirmed'); st.classList.add('cancelled'); }
+      const acts = wrapper.querySelector('.bk-actions'); if(acts){ acts.innerHTML = '<span class="bk-cancelled-note">—</span>'; }
+      setStatus('Booking cancelled','success');
+    }catch(e){ setStatus('Error: ' + e, 'error'); } finally{ try{ if(btnEl) btnEl.disabled=false; }catch(e){} }
+    }
+
+    function renderBooking(b){ const wrap = document.createElement('div'); wrap.className = 'booking-item'; const status = b.status || ''; let nights = b.nights; if(nights == null){ nights = 0; } const total = b.total_cost; const cancelled = (b.status === 'cancelled'); let totalFmt = (typeof total === 'number') ? total.toFixed(2) : (total||''); wrap.innerHTML = `
+      <div class="bk-head">
+        <div class="bk-hotel">
+          <a href="/hotel/${escapeHtml(b.hotel_id)}" class="bk-hotel-name">${escapeHtml(b.hotel_name || 'Hotel')}</a>
+          <div class="bk-dates">${fmtDate(b.check_in)} → ${fmtDate(b.check_out)} <span class="nights">(${nights} night${nights!==1?'s':''})</span></div>
+        </div>
+        <div class="bk-meta">
+          <span class="bk-status ${escapeHtml(status)}"></span>
+          <span class="bk-total">$${totalFmt}</span>
+        </div>
+      </div>
+      <div class="bk-foot">
+        <div class="bk-guests">Guests: ${b.guests}</div>
+        <div class="bk-actions">${ cancelled ? '<span class="bk-cancelled-note">—</span>' : `<button type="button" class="bk-cancel-btn" data-id="${escapeHtml(b._id)}">Cancel</button>` }</div>
+      </div>
+    `; if(!cancelled){ const btn = wrap.querySelector('.bk-cancel-btn'); if(btn){ btn.addEventListener('click', (evt)=> cancelBooking(evt, btn.getAttribute('data-id'), wrap, btn)); } }
+      return wrap; }
+
+    loadBookings(); try{ document.getElementById('year').textContent = new Date().getFullYear(); document.getElementById('p-year') && (document.getElementById('p-year').textContent = new Date().getFullYear()); }catch(e){}
+  })();
+  </script>
 </head>
 <body>
   {% include 'spanel.html' %}
@@ -26,6 +69,6 @@
     </div>
   </main>
   <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Bookings</footer>
-  <py-script src="{{ url_for('static', filename='py/bookings.py') }}"></py-script>
+  <!-- bookings logic inlined above -->
 </body>
 </html>

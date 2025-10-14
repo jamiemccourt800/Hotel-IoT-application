@@ -7,8 +7,32 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  (function(){
+    // Port of static/py/hotels.py
+    const API_HOTELS = '/api/hotels';
+    const API_CITIES = '/api/hotels/cities';
+    const statusEl = document.getElementById('status');
+    const searchEl = document.getElementById('search');
+    const cityFilter = document.getElementById('city-filter');
+    const sortFilter = document.getElementById('sort-filter');
+    const countEl = document.getElementById('result-count');
+    const gridEl = document.getElementById('hotel-grid');
+    const emptyEl = document.getElementById('empty');
+    const loadingEl = document.getElementById('hotel-loading');
+    let _all_hotels = [];
+    let _active_fetch_id = 0;
+    let _debounce_handle = null;
+    function setStatus(msg, kind='error'){ if(!statusEl) return; statusEl.className='status-bar show '+kind; statusEl.innerHTML=msg; }
+    function clearStatus(){ if(!statusEl) return; statusEl.className='status-bar'; statusEl.innerHTML=''; }
+    function renderHotels(data){ if(gridEl) gridEl.innerHTML=''; if(emptyEl){ emptyEl.style.display = (data && data.length)? 'none':'block'; } const frag = document.createDocumentFragment(); for(const h of (data||[])){ const card = document.createElement('div'); card.className='hotel-card'; const hid = h.hotel_id || ''; const link = hid? `/hotel/${hid}`:'#'; const name = h.name || ''; const city = h.city || ''; const country = h.country || ''; const price = h.price_per_night || ''; const img = h.image || ''; card.innerHTML = `<div class="hotel-content" style="height:auto;min-height:200px;"><picture><img loading="lazy" src="${img}" alt="${name}" style="height:120px;object-fit:cover;"/></picture><div class="hotel-body" style="padding:8px;"><div class="hotel-name" style="font-size:0.9rem;margin-bottom:4px;">${name}</div><div class="meta" style="font-size:0.8rem;margin-bottom:4px;">${city} • ${country}</div><div class="price" style="font-size:0.85rem;margin-bottom:6px;">€${price} <span style="font-size:.6rem;opacity:.7;">/ night</span></div><button class="u-btn" style="padding:4px 8px;font-size:0.8rem;" onclick="window.location.href='${link}'">Book Now →</button></div></div>`; frag.appendChild(card); } if(gridEl) gridEl.appendChild(frag); if(countEl) countEl.innerHTML = `${(data||[]).length} result${(data||[]).length!==1?'s':''}`; }
+    async function loadCities(){ try{ if(!cityFilter) return; const resp = await fetch(API_CITIES); if(!resp.ok) return; const data = await resp.json(); const cities = data.cities || []; while(cityFilter && cityFilter.options.length>1) cityFilter.remove(1); for(const c of cities){ const opt = document.createElement('option'); opt.value = c; opt.textContent = c; cityFilter.appendChild(opt); } }catch(e){} }
+    function scheduleFetch(){ if(_debounce_handle) clearTimeout(_debounce_handle); _debounce_handle = setTimeout(()=> remoteFetch(), 320); }
+    async function remoteFetch(){ _active_fetch_id += 1; const fetch_id = _active_fetch_id; const term = searchEl? searchEl.value.trim():''; const city = cityFilter? cityFilter.value : ''; const sort = sortFilter? sortFilter.value : ''; const params = []; if(term) params.push(`q=${encodeURIComponent(term)}`); if(city) params.push(`city=${encodeURIComponent(city)}`); if(sort) params.push(`sort=${encodeURIComponent(sort)}`); const qs = params.length?('?'+params.join('&')):''; try{ if(loadingEl) loadingEl.style.display='flex'; if(gridEl) gridEl.style.opacity='0.3'; const resp = await fetch(API_HOTELS + qs); const ctype = resp.headers && resp.headers.get? resp.headers.get('Content-Type') : null; if(!ctype || ctype.indexOf('application/json')===-1) return; const data = await resp.json(); if(fetch_id !== _active_fetch_id) return; const hotels = data.hotels || []; _all_hotels = hotels; renderHotels(hotels); }catch(e){ setStatus('Search failed: '+e,'error'); } finally{ if(loadingEl) loadingEl.style.display='none'; if(gridEl) gridEl.style.opacity='1'; } }
+    async function initialLoad(){ clearStatus(); await loadCities(); await remoteFetch(); }
+    if(searchEl) searchEl.addEventListener('input', ()=> scheduleFetch()); if(cityFilter) cityFilter.addEventListener('change', ()=> scheduleFetch()); if(sortFilter) sortFilter.addEventListener('change', ()=> scheduleFetch()); initialLoad(); try{ document.getElementById('year').innerHTML = new Date().getFullYear(); }catch(e){}
+  })();
+  </script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

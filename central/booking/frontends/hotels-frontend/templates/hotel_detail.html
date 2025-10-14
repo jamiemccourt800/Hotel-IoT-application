@@ -7,8 +7,49 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  (function(){
+    // Ported from static/py/hotel_detail.py
+    const container = document.getElementById('hotel-detail');
+    const hotelId = container ? container.getAttribute('data-hotel-id') : '';
+    const API_DETAIL = `/api/hotels/${hotelId}`;
+    const API_BOOK = '/api/bookings';
+    const API_AV = '/api/availability';
+    const API_AV_ROOMS = '/api/availability/rooms';
+    const statusEl = document.getElementById('status');
+    const wrapper = document.getElementById('hotel-detail');
+    const skel = document.getElementById('loading-skel');
+    const bookBtn = document.getElementById('book-btn');
+    const bookingStatus = document.getElementById('booking-status');
+    const ciEl = document.getElementById('check_in');
+    const coEl = document.getElementById('check_out');
+    const roomSelect = document.getElementById('room_select');
+    let HOTEL_BASE_PRICE = null;
+
+    function setStatus(msg, kind='error'){ if(!statusEl) return; statusEl.className = `status show ${kind}`; statusEl.textContent = msg; }
+    function clearStatus(){ if(statusEl){ statusEl.className='status'; statusEl.textContent=''; } }
+    function setBookingStatus(msg, kind='error'){ if(bookingStatus){ bookingStatus.className=`status show ${kind}`; bookingStatus.textContent = msg; } }
+    function clearBookingStatus(){ if(bookingStatus){ bookingStatus.className='status'; bookingStatus.textContent=''; } }
+
+    async function loadDetail(){ try{ const r = await fetch(API_DETAIL); const ctype = r.headers && r.headers.get? r.headers.get('Content-Type') : ''; if(!ctype || ctype.indexOf('application/json')===-1){ setStatus('Unexpected response while loading hotel','error'); return; } const data = await r.json(); if(!data.ok){ setStatus(data.error || 'Failed to load','error'); return; } const h = data.hotel || {}; document.getElementById('hotel-name').textContent = h.name || ''; document.getElementById('hotel-location').textContent = `${h.city||''} • ${h.country||''}`.trim(); const basePriceVal = parseFloat(h.price_per_night || 0) || 0; HOTEL_BASE_PRICE = basePriceVal; document.getElementById('hotel-price').textContent = `$${basePriceVal} / night`; const img = document.getElementById('hero-img'); if(img){ img.src = h.image||''; img.alt = h.name||''; } const capEl = document.getElementById('hotel-capacity'); if(capEl){ if('room_count' in h) capEl.textContent = `Rooms: ${h.room_count}`; else if(h.capacity_hint) capEl.textContent = h.capacity_hint; else capEl.hidden = true; } const mgrs = h.managers; const mgrEl = document.getElementById('hotel-managers'); if(mgrEl){ if(mgrs && mgrs.length) mgrEl.textContent = 'Managers: ' + mgrs.join(', '); else mgrEl.hidden = true; } const createdTs = h.created_at; const createdEl = document.getElementById('hotel-created'); if(createdEl){ if(createdTs){ try{ const dt = new Date(parseInt(createdTs)*1000); createdEl.textContent = 'Created ' + dt.toISOString().slice(0,19).replace('T',' ')+ ' UTC'; }catch(e){ createdEl.hidden = true; } } else createdEl.hidden = true; } if(skel) skel.hidden = true; if(wrapper) wrapper.hidden = false; try{ if((h.city || h.country) && document.getElementById('hotel-map')){ const q = `${h.city||''} ${h.country||''}`.trim(); const src = 'https://www.google.com/maps?q='+ encodeURIComponent(q) + '&output=embed'; const iframe = document.getElementById('hotel-map'); const ph = document.getElementById('map-placeholder'); if(iframe){ iframe.src = src; iframe.style.display = 'block'; if(ph){ ph.textContent = 'Map loaded'; setTimeout(()=> ph.remove(), 1200); } } } }catch(e){}
+    }catch(e){ setStatus('Error loading hotel: '+e,'error'); } }
+
+    async function checkAvailability(ci, co){ try{ const params = `?hotel_id=${encodeURIComponent(hotelId)}&start=${encodeURIComponent(ci)}&end=${encodeURIComponent(co)}`; const r = await fetch(`${API_AV}${params}`); if(!r.ok) return null; const data = await r.json(); if(!data.ok) return null; return data; }catch(e){ return null; } }
+
+    async function loadAvailableRooms(ci, co){ try{ if(!roomSelect) return; roomSelect.innerHTML=''; const opt = document.createElement('option'); opt.value=''; opt.textContent = 'Any available room'; roomSelect.appendChild(opt); if(!ci || !co) return; const params = `?hotel_id=${encodeURIComponent(hotelId)}&start=${encodeURIComponent(ci)}&end=${encodeURIComponent(co)}`; const r = await fetch(`${API_AV_ROOMS}${params}`); if(!r.ok) return; const data = await r.json(); if(!data.ok) return; const rooms = data.available_rooms || []; for(const rr of rooms){ const o = document.createElement('option'); o.value = rr._id || ''; const num = rr.room_number || ''; const typ = rr.type || ''; const cap = rr.capacity; const capTxt = (cap !== undefined && cap !== null)? ` • ${cap}p` : ''; let priceTxt = ''; const price = rr.price_per_night; try{ if(price !== undefined && price !== null){ const p = parseFloat(price); if(Number.isFinite(p) && (HOTEL_BASE_PRICE === null || Math.abs(p - HOTEL_BASE_PRICE) > 1e-6)){ priceTxt = ` • $${p.toFixed(2)}`; } } }catch(e){} o.textContent = `${num} ${typ? '• '+typ : ''}${capTxt}${priceTxt}`; roomSelect.appendChild(o); }
+    }catch(e){ console.log('load_available_rooms error: '+e); } }
+
+    function _dateRange(ci, co){ try{ const s = new Date(ci); const e = new Date(co); const out = []; for(let d = new Date(s); d < e; d.setDate(d.getDate()+1)){ out.push(d.toISOString().slice(0,10)); } return out; }catch(e){ return []; } }
+
+    async function validateDates(evt){ try{ if(!ciEl || !coEl) return; const ci = ciEl.value || ''; const co = coEl.value || ''; ciEl.setCustomValidity(''); coEl.setCustomValidity(''); if(!ci || !co) return; const ciDt = new Date(ci); const coDt = new Date(co); if(coDt <= ciDt){ coEl.setCustomValidity('Check-out must be after check-in'); if(bookBtn) bookBtn.disabled = true; coEl.reportValidity(); return; } const av = await checkAvailability(ci, co); if(!av){ setBookingStatus('Could not verify availability right now. Try again.', 'warning'); if(bookBtn) bookBtn.disabled = false; return; } const fully = new Set(av.fully_booked_dates || []); const days = _dateRange(ci, co); const anyBlocked = days.some(d => fully.has(d)); const minAv = parseInt(av.min_available || 0); if(anyBlocked || minAv <= 0){ const msg = 'Selected dates include fully booked day(s). Please choose different dates.'; coEl.setCustomValidity(msg); coEl.reportValidity(); setBookingStatus(msg, 'error'); if(bookBtn) bookBtn.disabled = true; } else { clearBookingStatus(); if(bookBtn) bookBtn.disabled = false; } await loadAvailableRooms(ci, co); }catch(e){} }
+
+    async function doBooking(evt){ evt.preventDefault(); clearBookingStatus(); if(!bookBtn) return; const gEl = document.getElementById('guests'); const ci = ciEl? ciEl.value : ''; const co = coEl? coEl.value : ''; const guestsRaw = gEl? gEl.value : '1'; if(!ci || !co){ setBookingStatus('Select check-in and check-out dates', 'error'); return; } try{ const ciDt = new Date(ci); const coDt = new Date(co); if(coDt <= ciDt){ setBookingStatus('Check-out must be after check-in', 'error'); return; } }catch(e){ setBookingStatus('Invalid date format','error'); return; } try{ const av = await checkAvailability(ci, co); if(av){ if(parseInt(av.min_available||0) <= 0){ setBookingStatus('These dates are fully booked. Please pick different dates.', 'error'); return; } const fully = new Set(av.fully_booked_dates || []); if(_dateRange(ci, co).some(d=> fully.has(d))){ setBookingStatus('These dates include fully booked day(s). Please pick different dates.', 'error'); return; } } }catch(e){} let guests = 1; try{ guests = parseInt(guestsRaw); if(isNaN(guests) || guests < 1) throw new Error('guests'); }catch(e){ setBookingStatus('Guests must be a positive number','error'); return; } const roomId = roomSelect? roomSelect.value : ''; const payload = { hotel_id: hotelId, check_in: ci, check_out: co, guests: guests }; if(roomId) payload.room_id = roomId; try{ bookBtn.disabled = true; bookBtn.textContent = 'Booking...'; const r = await fetch(API_BOOK, { method:'POST', headers:{ 'Content-Type':'application/json','Accept':'application/json','X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(payload), credentials: 'same-origin' }); const status = r.status; const ctype = r.headers && r.headers.get? r.headers.get('Content-Type') : ''; if(ctype && ctype.toLowerCase().indexOf('application/json') !== -1){ const data = await r.json(); if(status === 201 && data.ok){ const bk = data.booking || {}; const total = bk.total_cost; let totalFmt = (typeof total === 'number')? total.toFixed(2) : (total||''); setBookingStatus(`Booking confirmed • ${bk.nights||'?'} nights • Total $${totalFmt}`, 'success'); setTimeout(()=> window.location.href = '/manage-bookings', 900); } else { let err = data.error || 'Booking failed'; if(status === 401) err = 'Please login first to book.'; setBookingStatus(err, 'error'); } } else { if(status === 401) setBookingStatus('Please login to book this hotel.', 'error'); else if(status === 404) setBookingStatus('Booking endpoint not found. Refresh page.', 'error'); else { const txt = await r.text().catch(()=> ''); const snippet = txt.length > 120 ? txt.slice(0,120)+'…' : txt; setBookingStatus(`Unexpected response (${status}): ${snippet}`, 'error'); } } }catch(e){ setBookingStatus('Error: '+e,'error'); } finally{ bookBtn.disabled = false; }
+    }
+
+    // Attach listeners
+    try{ if(ciEl) ciEl.addEventListener('change', validateDates); if(coEl) coEl.addEventListener('change', validateDates); if(bookBtn) bookBtn.addEventListener('click', doBooking); loadDetail(); }catch(e){}
+  })();
+  </script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

@@ -7,8 +7,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  (function(){
+    const API_SIGNUP = '/signup?ajax=1';
+    const form = document.getElementById('signup-form');
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('submit-btn');
+    const labelSpan = btn ? btn.querySelector('.btn-label') : null;
+    function setStatus(msg, kind='error'){ if(!statusEl) return; statusEl.className = 'status show ' + kind; statusEl.textContent = msg; }
+    function clearStatus(){ if(!statusEl) return; statusEl.className='status'; statusEl.textContent=''; }
+    async function submitHandler(evt){ evt.preventDefault(); clearStatus(); if(!form){ setStatus('Form not found','error'); return; } const username = form.username.value.trim(); const password = form.password.value; const display_name = form.display_name.value.trim(); if(!username || !password){ setStatus('Username and password required','error'); return; } if(password.length < 6){ setStatus('Password too short','error'); return; } const payload = { username, password }; if(display_name) payload.display_name = display_name; if(btn){ btn.disabled = true; if(labelSpan) labelSpan.textContent = 'Creating...'; }
+      try{
+        const resp = await fetch(API_SIGNUP, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json','X-Requested-With':'XMLHttpRequest'}, body: JSON.stringify(payload), credentials:'same-origin' });
+        const status = resp.status;
+        let data = {};
+        try{ data = await resp.json(); }catch(e){ setStatus('Unexpected response format','error'); return; }
+        if(status === 201 && data.ok){ setStatus('Account created! Redirecting...', 'success'); setTimeout(()=> window.location.href='/', 900); }
+        else{ setStatus(data.error || 'Signup failed', 'error'); }
+      }catch(e){ setStatus('Error: ' + e, 'error'); }
+      finally{ if(btn){ btn.disabled=false; if(labelSpan) labelSpan.textContent='Create Account'; } }
+    }
+    if(form){ form.addEventListener('submit', submitHandler); }
+    try{ document.getElementById('year').textContent = new Date().getFullYear(); }catch(e){}
+  })();
+  </script>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="login-page">
@@ -49,9 +71,6 @@
     <footer>© <span id="year"></span> Booking Platform • Sign Up</footer>
   </div>
 
-  <py-config>
-    packages = []
-  </py-config>
-  <py-script src="{{ url_for('static', filename='py/signup.py') }}"></py-script>
+  <!-- signup logic inlined above -->
 </body>
 </html>

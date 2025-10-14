@@ -69,7 +69,41 @@
   <py-config>
     packages = []
   </py-config>
-  <py-script src="{{ url_for('static', filename='py/users.py') }}?v=20251009a"></py-script>
+  <script>
+  (function(){
+    // Inline port of static/py/users.py
+    const API_USERS = '/api/users';
+    const API_USERS_CREATE = '/api/users/create';
+    const form = document.getElementById('user-form');
+    const statusEl = document.getElementById('user-status');
+    const tableBody = document.getElementById('users-tbody');
+    const btn = document.getElementById('submit-btn');
+    const roleSelect = document.getElementById('role');
+    const labelSpan = btn ? btn.querySelector('.btn-label') : null;
+
+    function setStatus(msg, kind='error'){ if(!statusEl) return; statusEl.className = 'status-bar show ' + kind; statusEl.textContent = msg; }
+    function clearStatus(){ if(!statusEl) return; statusEl.className='status-bar'; statusEl.textContent=''; }
+    function serialize(){ if(!form) return {}; return { username: form.username.value.trim(), display_name: form.display.value.trim(), password: form.password.value.trim(), role: form.role.value.trim() }; }
+
+    async function fetchUsers(){ if(!tableBody) return; try{ const resp = await fetch(API_USERS); if(!resp.ok) return; const data = await resp.json(); const users = data.users || []; tableBody.innerHTML=''; const frag = document.createDocumentFragment(); for(const u of users){ const tr = document.createElement('tr'); const username = u.username||''; const display_name = u.display_name||''; const role = u.role||''; const active = (u.active === undefined) ? true : u.active; const activeBadge = active ? 'Yes' : '<span style="color:#f87171;">No</span>'; tr.innerHTML = `<td style="padding:.5rem .6rem; font-weight:600;">${username}</td><td style="padding:.5rem .6rem;">${display_name}</td><td style="padding:.5rem .6rem; text-transform:capitalize;">${role}</td><td style="padding:.5rem .6rem;">${activeBadge}</td><td style="padding:.4rem .5rem; display:flex; gap:.35rem; flex-wrap:wrap;"><button type="button" class="u-btn" data-act="edit" data-user="${username}">Edit</button><button type="button" class="u-btn" data-act="pw" data-user="${username}">Password</button><button type="button" class="u-btn" data-act="tog" data-user="${username}">${active? 'Disable':'Enable'}</button><button type="button" class="u-btn danger" data-act="del" data-user="${username}">Delete</button></td>`; frag.appendChild(tr); }
+        tableBody.appendChild(frag); bindActionButtons(); }catch(e){ setStatus('Failed to load users: '+e,'error'); } }
+
+    function bindActionButtons(){ if(!tableBody) return; const buttons = tableBody.querySelectorAll('button.u-btn'); buttons.forEach(b => { if(b._bound) return; b.addEventListener('click', ()=> handleAction(b)); b._bound = true; }); }
+
+    async function handleAction(btn){ try{ const act = btn.getAttribute('data-act')||''; const username = btn.getAttribute('data-user')||''; if(!username) return; if(act==='del'){ const confirmTxt = prompt(`Delete user '${username}'? Type DELETE to confirm`); if(confirmTxt !== 'DELETE') return; await doDelete(username); return; } if(act==='tog'){ const row = btn.closest('tr'); if(!row) return; const activeCell = row.children[3]; const currentlyActive = activeCell && activeCell.textContent.indexOf('No')===-1; await doUpdate(username, { active: !currentlyActive }); return; } if(act==='edit'){ const row = btn.closest('tr'); if(!row) return; const curDisplay = row.children[1].textContent || ''; const newDisplay = prompt('New display name (leave blank to keep):', curDisplay) || curDisplay; const curRole = (row.children[2].textContent||'').toLowerCase(); const newRole = prompt(`Role for ${username} (admin/manager/guest) or blank to keep:`, curRole) || curRole; const payload = {}; if(newDisplay !== curDisplay) payload.display_name = newDisplay; if(newRole !== curRole) payload.role = newRole; if(Object.keys(payload).length) await doUpdate(username, payload); return; } if(act==='pw'){ const newPw = prompt(`Enter new password for ${username} (min 6 chars):`); if(!newPw) return; if(newPw.length < 6){ setStatus('Password too short','error'); return; } await doPassword(username, newPw); return; } }catch(e){ setStatus('Action error: '+e,'error'); } }
+
+    async function submitHandler(evt){ evt.preventDefault(); clearStatus(); const payload = serialize(); if(btn){ btn.disabled=true; btn.classList.add('loading'); if(labelSpan) labelSpan.textContent='Creating...'; } try{ const resp = await fetch(API_USERS_CREATE, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(payload) }); const text = await resp.text(); let data = {}; try{ data = JSON.parse(text); }catch(e){ setStatus('Bad response','error'); return; } if(((resp.status>=200 && resp.status<300) && data.ok) || data.user){ setStatus(data.message || 'User created', 'success'); try{ form.username.value=''; form.password.value=''; form.display.value=''; }catch(e){} await fetchUsers(); } else { setStatus(data.error || `Create failed (status ${resp.status})`, 'error'); } }catch(e){ setStatus('Network error: '+e,'error'); } finally{ if(btn){ btn.disabled=false; btn.classList.remove('loading'); if(labelSpan) labelSpan.textContent='Create'; } } }
+
+    async function doUpdate(username, payload){ try{ const resp = await fetch(`${API_USERS}/${encodeURIComponent(username)}`, { method:'PATCH', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(payload) }); const resText = await resp.text(); let data = {}; try{ data = JSON.parse(resText); }catch(e){ setStatus('Bad response','error'); return; } if(resp.ok && data.ok){ setStatus('Updated','success'); await fetchUsers(); } else { setStatus(data.error || 'Update failed','error'); } }catch(e){ setStatus('Network error: '+e,'error'); } }
+
+    async function doDelete(username){ try{ let resp = await fetch(`${API_USERS}/${encodeURIComponent(username)}`, { method:'DELETE', headers:{'Accept':'application/json'} }); let status = resp.status; if(status === 405){ resp = await fetch(`${API_USERS}/${encodeURIComponent(username)}?_method=DELETE`, { method:'GET', headers:{'Accept':'application/json'} }); } const text = await resp.text(); let data = {}; try{ data = JSON.parse(text); }catch(e){ setStatus('Bad response','error'); return; } if(resp.ok && data.ok){ setStatus('Deleted','success'); await fetchUsers(); } else { setStatus(data.error || 'Delete failed','error'); } }catch(e){ setStatus('Network error: '+e,'error'); } }
+
+    async function doPassword(username, newPw){ try{ const resp = await fetch(`${API_USERS}/${encodeURIComponent(username)}/password-change`, { method:'POST', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({ new_password: newPw }) }); const text = await resp.text(); let data = {}; try{ data = JSON.parse(text); }catch(e){ setStatus('Bad response','error'); return; } if(resp.ok && data.ok){ setStatus('Password updated','success'); } else { setStatus(data.error || 'Password change failed','error'); } }catch(e){ setStatus('Network error: '+e,'error'); } }
+
+    if(form){ form.addEventListener('submit', (e)=>{ e.preventDefault(); submitHandler(e); }); if(btn && !btn._bound){ btn.addEventListener('click', (e)=> { e.preventDefault(); submitHandler(e); }); btn._bound = true; } window.addEventListener('keydown', (ev)=>{ try{ if(ev.altKey && ev.shiftKey && ev.key.toLowerCase() === 'u'){ form.username.value = 'test_' + String(Date.now()).slice(-5); form.password.value = 'TestPass123!'; submitHandler(ev); } }catch(e){} }); fetchUsers(); }
+    try{ document.getElementById('year').textContent = new Date().getFullYear(); }catch(e){}
+  })();
+  </script>
   <script>
     // Minimal JS fallback: if PyScript doesn't bind, handle .u-btn actions here
     (function(){

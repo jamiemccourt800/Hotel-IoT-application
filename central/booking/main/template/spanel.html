@@ -49,4 +49,23 @@
 </aside>
 
 {# Attach panel behavior. Note: avoid <py-config> here; pages should define at most one globally. #}
-<py-script src="{{ url_for('static', filename='py/panel.py') }}"></py-script>
+<script>
+  (function(){
+    // Side panel behaviour ported from main/static/py/panel.py
+    const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex="0"]';
+    let _lastFocus = null;
+    const navToggle = document.getElementById('nav-toggle');
+    const sidePanel = document.getElementById('side-panel');
+    const panelOverlay = document.getElementById('panel-overlay');
+    const panelClose = document.getElementById('panel-close');
+    const logoutHeader = document.getElementById('logout-btn');
+    const logoutPanel = document.getElementById('panel-logout');
+
+    function openPanel(){ if(!sidePanel) return; _lastFocus = document.activeElement; sidePanel.classList.add('open'); if(panelOverlay){ panelOverlay.classList.add('show'); panelOverlay.hidden = false; } if(navToggle) navToggle.setAttribute('aria-expanded','true'); sidePanel.setAttribute('aria-hidden','false'); const first = sidePanel.querySelector(FOCUSABLE_SELECTOR); if(first) first.focus(); document.addEventListener('keydown', keyHandler); }
+    function closePanel(){ if(!sidePanel) return; sidePanel.classList.remove('open'); if(panelOverlay){ panelOverlay.classList.remove('show'); panelOverlay.hidden = true; } if(navToggle) navToggle.setAttribute('aria-expanded','false'); sidePanel.setAttribute('aria-hidden','true'); document.removeEventListener('keydown', keyHandler); try{ if(_lastFocus) _lastFocus.focus(); }catch(e){} }
+    function keyHandler(evt){ try{ const key = evt.key; if(key === 'Escape'){ closePanel(); return; } if(key === 'Tab' && sidePanel && sidePanel.classList.contains('open')){ const focusables = sidePanel.querySelectorAll(FOCUSABLE_SELECTOR); if(!focusables.length) return; const first = focusables[0]; const last = focusables[focusables.length-1]; const active = document.activeElement; if(evt.shiftKey && active === first){ evt.preventDefault(); last.focus(); } else if(!evt.shiftKey && active === last){ evt.preventDefault(); first.focus(); } } }catch(e){} }
+    if(navToggle) navToggle.addEventListener('click', ()=> { if(sidePanel && sidePanel.classList.contains('open')) closePanel(); else openPanel(); }); if(panelOverlay) panelOverlay.addEventListener('click', closePanel); if(panelClose) panelClose.addEventListener('click', closePanel); if(logoutHeader) logoutHeader.addEventListener('click', ()=> doLogout(logoutHeader)); if(logoutPanel) logoutPanel.addEventListener('click', ()=> doLogout(logoutPanel)); window.addEventListener('pageshow', ()=> closePanel());
+    async function doLogout(btn){ if(!btn) return; const original = btn.textContent; btn.disabled = true; btn.textContent = 'Logging out…'; try{ const resp = await fetch('/logout', { method:'POST', headers:{'Accept':'application/json'} }); if(resp.ok){ window.location.href = '/'; return; } }catch(e){} btn.textContent = 'Retry'; btn.disabled = false; setTimeout(()=>{ if(!btn.disabled) btn.textContent = original; }, 3000); }
+    try{ const py = document.getElementById('p-year'); if(py) py.textContent = new Date().getFullYear(); }catch(e){}
+  })();
+</script>

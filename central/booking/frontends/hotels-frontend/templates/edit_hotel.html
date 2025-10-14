@@ -8,8 +8,41 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
-  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+  <script>
+  // Inline panel and edit_hotel logic (port of py panel.py + edit_hotel.py)
+  (function(){
+    // panel behaviour (accessibility/open/close)
+    const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), [tabindex="0"]';
+    let _lastFocus = null;
+    const navToggle = document.getElementById('nav-toggle');
+    const sidePanel = document.getElementById('side-panel');
+    const panelOverlay = document.getElementById('panel-overlay');
+    const panelClose = document.getElementById('panel-close');
+    const logoutHeader = document.getElementById('logout-btn');
+    const logoutPanel = document.getElementById('panel-logout');
+
+    function openPanel(){ if(!sidePanel) return; _lastFocus = document.activeElement; sidePanel.classList.add('open'); if(panelOverlay){ panelOverlay.classList.add('show'); panelOverlay.hidden = false; } if(navToggle) navToggle.setAttribute('aria-expanded','true'); sidePanel.setAttribute('aria-hidden','false'); const first = sidePanel.querySelector(FOCUSABLE_SELECTOR); if(first) first.focus(); document.addEventListener('keydown', keyHandler); }
+    function closePanel(){ if(!sidePanel) return; sidePanel.classList.remove('open'); if(panelOverlay){ panelOverlay.classList.remove('show'); panelOverlay.hidden = true; } if(navToggle) navToggle.setAttribute('aria-expanded','false'); sidePanel.setAttribute('aria-hidden','true'); document.removeEventListener('keydown', keyHandler); try{ if(_lastFocus) _lastFocus.focus(); }catch(e){} }
+    function keyHandler(evt){ try{ const key = evt.key; if(key === 'Escape'){ closePanel(); return; } if(key === 'Tab' && sidePanel && sidePanel.classList.contains('open')){ const focusables = sidePanel.querySelectorAll(FOCUSABLE_SELECTOR); if(!focusables.length) return; const first = focusables[0]; const last = focusables[focusables.length-1]; const active = document.activeElement; if(evt.shiftKey && active === first){ evt.preventDefault(); last.focus(); } else if(!evt.shiftKey && active === last){ evt.preventDefault(); first.focus(); } } }catch(e){} }
+    if(navToggle) navToggle.addEventListener('click', ()=> { if(sidePanel && sidePanel.classList.contains('open')) closePanel(); else openPanel(); }); if(panelOverlay) panelOverlay.addEventListener('click', closePanel); if(panelClose) panelClose.addEventListener('click', closePanel); if(logoutHeader) logoutHeader.addEventListener('click', ()=> doLogout(logoutHeader)); if(logoutPanel) logoutPanel.addEventListener('click', ()=> doLogout(logoutPanel)); window.addEventListener('pageshow', ()=> closePanel());
+
+    async function doLogout(btn){ if(!btn) return; const original = btn.textContent; btn.disabled = true; btn.textContent = 'Logging out…'; try{ const resp = await fetch('/logout', { method:'POST', headers:{'Accept':'application/json'} }); if(resp.ok){ window.location.href = '/'; return; } }catch(e){} btn.textContent = 'Retry'; btn.disabled = false; setTimeout(()=>{ if(!btn.disabled) btn.textContent = original; }, 3000); }
+
+    // edit_hotel form
+    const form = document.getElementById('edit-form');
+    const statusEl = document.getElementById('status');
+    const API_BASE = '/api/hotels';
+    function setStatus(msg, kind='error'){ if(statusEl){ statusEl.className = 'status show ' + kind; statusEl.textContent = msg; } }
+    function clearStatus(){ if(statusEl){ statusEl.className = 'status'; statusEl.textContent = ''; } }
+
+    async function loadDetail(hotelId){ try{ const r = await fetch(`${API_BASE}/${hotelId}`); if(!r.ok){ setStatus(`Failed to load hotel (${r.status})`,'error'); return; } const data = await r.json(); if(!data.ok){ setStatus(data.error || 'Load failed','error'); return; } const h = data.hotel || {}; document.getElementById('name').value = h.name || ''; document.getElementById('city').value = h.city || ''; document.getElementById('country').value = h.country || ''; document.getElementById('price').value = h.price_per_night || 0; document.getElementById('image').value = h.image || ''; const rcEl = document.getElementById('room_count'); if(rcEl){ const rcVal = h.room_count; rcEl.value = (rcVal === null || rcVal === undefined) ? '' : String(rcVal); } const hiddenEl = document.getElementById('hidden'); if(hiddenEl && h.hidden) hiddenEl.checked = true; }catch(e){ setStatus('Error: '+e,'error'); } }
+
+    async function submitEdit(evt){ evt.preventDefault(); clearStatus(); const hotelId = form.getAttribute('data-hotel-id'); if(!hotelId){ setStatus('Missing hotel id','error'); return; } const rcRaw = document.getElementById('room_count').value; let includeRoom = true; let rcConverted = null; if(rcRaw.trim() === '') includeRoom = false; else { try{ rcConverted = parseInt(rcRaw,10); }catch(e){ setStatus('Room count must be an integer','error'); return; } } const payload = { name: document.getElementById('name').value.trim(), city: document.getElementById('city').value.trim(), country: document.getElementById('country').value.trim(), price_per_night: document.getElementById('price').value, image: document.getElementById('image').value.trim(), hidden: document.getElementById('hidden').checked }; if(includeRoom) payload.room_count = rcConverted; const btnSave = document.getElementById('save-btn'); try{ if(btnSave){ btnSave.disabled = true; btnSave.textContent = 'Saving...'; } const r = await fetch(`${API_BASE}/${hotelId}`, { method:'PATCH', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) }); const ctype = r.headers && r.headers.get? r.headers.get('Content-Type') : ''; if(!r.ok){ if(ctype && ctype.indexOf('application/json')!==-1){ const data = await r.json(); setStatus(data.error || 'Update failed', 'error'); } else { setStatus(`Update failed (${r.status})`,'error'); } return; } const data = await r.json(); if(!data.ok){ setStatus(data.error || 'Update failed','error'); return; } const updated = data.updated || []; if(!updated.length) setStatus('No changes (values identical)','success'); else setStatus('Saved: ' + updated.join(', '),'success'); loadDetail(hotelId); }catch(e){ setStatus('Error: '+e,'error'); } finally{ if(btnSave){ btnSave.disabled = false; btnSave.textContent = 'Save Changes'; } } }
+
+    if(form){ const hid = form.getAttribute('data-hotel-id'); if(hid) loadDetail(hid); form.addEventListener('submit', submitEdit); const saveBtn = document.getElementById('save-btn'); if(saveBtn) saveBtn.addEventListener('click', (e)=> { e.preventDefault(); submitEdit(e); }); }
+    try{ document.getElementById('year').textContent = new Date().getFullYear(); document.getElementById('p-year').textContent = new Date().getFullYear(); }catch(e){}
+  })();
+  </script>
 </head>
 <body>
   <header>
