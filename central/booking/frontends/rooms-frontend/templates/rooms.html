@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Rooms</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Rooms</h1>
+    <nav>
+      <a href="/create-room">Create Room</a>
+      <a href="/manage-rooms">Manage Rooms</a>
+    </nav>
+  </header>
+  <main>
+    <section>
+      <label>Filter by Hotel ID: <input id="hotelId" placeholder="hotel ObjectId" /></label>
+      <button id="load">Load</button>
+    </section>
+    <section>
+      <table id="roomsTable">
+        <thead>
+          <tr><th>Room #</th><th>Type</th><th>Capacity</th><th>Price</th><th>Hotel</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+  <script>
+    async function loadRooms() {
+      const hid = document.getElementById('hotelId').value.trim();
+      const qs = hid ? `?hotel_id=${encodeURIComponent(hid)}` : '';
+      const res = await fetch(`/api/rooms${qs}`);
+      const data = await res.json();
+      const tbody = document.querySelector('#roomsTable tbody');
+      tbody.innerHTML = '';
+      if (!data.ok) {
+        tbody.innerHTML = `<tr><td colspan="6">Error: ${data.error || 'failed'}</td></tr>`;
+        return;
+      }
+      data.rooms.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.room_number || ''}</td>
+                        <td>${r.type || ''}</td>
+                        <td>${r.capacity ?? ''}</td>
+                        <td>${r.price_per_night ?? ''}</td>
+                        <td>${r.hotel_id || ''}</td>
+                        <td><a href="/edit-room/${r._id}">Edit</a></td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    document.getElementById('load').addEventListener('click', loadRooms);
+    loadRooms();
+  </script>
+</body>
+</html>
