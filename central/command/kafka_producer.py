@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from aiokafka import AIOKafkaProducer
+from aiokafka.errors import KafkaConnectionError
 from config import config
 
 logger = logging.getLogger("kafka_producer")
@@ -9,7 +10,7 @@ logger.setLevel(logging.INFO)
 producer: AIOKafkaProducer = None
 
 async def start_producer():
-    """Initialize and start the Kafka producer."""
+    """Initialize and start the Kafka producer with retries."""
     global producer
     if producer is None:
         producer = AIOKafkaProducer(
@@ -18,8 +19,20 @@ async def start_producer():
             acks=config.ACKS,
             linger_ms=config.LINGER_MS,
         )
-        await producer.start()
-        logger.info("Kafka producer started")
+        attempts, max_attempts, delay = 0, getattr(config, 'RETRIES', 10), 2
+        while True:
+            try:
+                attempts += 1
+                logger.info(f"Starting Kafka producer (attempt {attempts}/{max_attempts}) to {config.KAFKA_BOOTSTRAP}")
+                await producer.start()
+                logger.info("Kafka producer started")
+                break
+            except Exception as e:
+                if attempts >= max_attempts:
+                    logger.error(f"Failed to start Kafka producer after {attempts} attempts: {e}")
+                    raise
+                logger.warning(f"Kafka not ready: {e}; retrying in {delay}s...")
+                await asyncio.sleep(delay)
 
 async def stop_producer():
     """Flush and stop the Kafka producer."""

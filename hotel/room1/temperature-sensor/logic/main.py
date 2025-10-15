@@ -76,8 +76,22 @@ def main():
     # Create MQTT client
     client = mqtt.Client(client_id=f"{sensor}")
     client.will_set(topic_status, payload=lwt, qos=1, retain=False)
-    client.connect(broker, port, keepalive)
-    client.loop_start()
+
+    # Robust connect with retries
+    attempts, max_attempts, delay = 0, int(os.getenv("MQTT_MAX_ATTEMPTS", "30")), float(os.getenv("MQTT_RETRY_DELAY", "2"))
+    while True:
+        try:
+            attempts += 1
+            print(f"[mqtt] connecting to {broker}:{port} (attempt {attempts}/{max_attempts})")
+            client.connect(broker, port, keepalive)
+            client.loop_start()
+            print("[mqtt] connected")
+            break
+        except Exception as e:
+            if attempts >= max_attempts:
+                raise
+            print(f"[mqtt] connect failed: {e}; retrying in {delay}s...")
+            time.sleep(delay)
 
     # On start, publish sensor_online alert
     client.publish(topic_status, json.dumps({
