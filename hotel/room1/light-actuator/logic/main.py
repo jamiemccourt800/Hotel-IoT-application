@@ -58,6 +58,27 @@ def now_ms() -> int:
     """
     return int(time.time() * 1000)
 
+def build_alert(hotel_id, room, sensor, kind: str, severity: str = "INFO"):
+    """
+    Build an alert/status message in the universal schema.
+
+    Args:
+        hotel_id (str): Hotel identifier
+        room (str): Room identifier
+        sensor (str): Device identifier (kept as 'sensor' for schema parity)
+        kind (str): e.g., 'actuator_online' | 'actuator_offline'
+        severity (str): e.g., 'INFO' | 'HIGH'
+
+    Returns:
+        dict: payload with measurement/tags/fields/timestamp
+    """
+    return {
+        "measurement": "alert",
+        "tags": {"hotel_id": hotel_id, "room": room, "sensor": sensor},
+        "fields": {"kind": kind, "severity": severity},
+        "timestamp": now_ms(),
+    }
+
 def build_ack(correlation_id, hotel_id, room, sensor, status, error=""):
     """
     Build an acknowledgment message.
@@ -118,15 +139,22 @@ light_on = INITIAL_ON
 brightness = INITIAL_BRIGHTNESS
 
 # MQTT client setup
-client = mqtt.Client(protocol=mqtt.MQTTv311, clean_session=True)
-client.will_set(TOPIC_STATUS, payload=json.dumps({"status": "offline", "ts": now_ms()}), qos=1, retain=True)
+client = mqtt.Client(protocol=mqtt.MQTTv311, clean_session=True, callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+client.will_set(
+    TOPIC_STATUS,
+    payload=json.dumps(build_alert(HOTEL_ID, ROOM, SENSOR, kind="actuator_offline", severity="HIGH")),
+    qos=1,
+    retain=False,
+)
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, reason_code, properties):
     """
     MQTT on_connect callback.
     Publishes initial status and state, subscribes to command topic.
     """
-    client.publish(TOPIC_STATUS, json.dumps({"status": "online", "ts": now_ms()}), qos=1, retain=True)
+    print(f"Connected to MQTT with reason_code={reason_code}")
+    online_msg = build_alert(HOTEL_ID, ROOM, SENSOR, kind="actuator_online", severity="INFO")
+    client.publish(TOPIC_STATUS, json.dumps(online_msg), qos=1, retain=False)
     boot = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(boot), qos=QOS, retain=True)
     client.subscribe(TOPIC_CMD, qos=QOS)
@@ -154,6 +182,12 @@ def on_message(client, userdata, msg):
     try:
         data = json.loads(msg.payload.decode("utf-8")) if msg.payload else {}
     except Exception:
+        # Debug log to help identify malformed publishers
+        try:
+            raw = msg.payload.decode("utf-8", errors="replace") if msg.payload else "<empty>"
+        except Exception:
+            raw = str(msg.payload)
+        print(f"Malformed JSON on topic={msg.topic}: payload={raw}")
         ack = build_ack(None, HOTEL_ID, ROOM, SENSOR, status="failed", error="malformed_json")
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
@@ -215,7 +249,22 @@ def main():
     """
     client.on_connect = on_connect
     client.on_message = on_message
-    client.connect(BROKER, BROKER_PORT, KEEPALIVE)
+
+    # Robust MQTT connect with retries
+    attempts, max_attempts, delay = 0, int(os.environ.get("MQTT_MAX_ATTEMPTS", "30")), float(os.environ.get("MQTT_RETRY_DELAY", "2"))
+    while True:
+        try:
+            attempts += 1
+            print(f"[mqtt] connecting to {BROKER}:{BROKER_PORT} (attempt {attempts}/{max_attempts})")
+            client.connect(BROKER, BROKER_PORT, KEEPALIVE)
+            print("[mqtt] connected")
+            break
+        except Exception as e:
+            if attempts >= max_attempts:
+                raise
+            print(f"[mqtt] connect failed: {e}; retrying in {delay}s...")
+            time.sleep(delay)
+
     client.loop_forever()
 
 if __name__ == "__main__":
