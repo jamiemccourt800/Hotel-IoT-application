@@ -2,6 +2,21 @@
 import os, json, time
 import paho.mqtt.client as mqtt
 
+# --- Logging ---
+def log(level, event, msg, **fields):
+    ts = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime()) + f'.{int(time.time()*1000)%1000:03d}Z'
+    service = 'light-actuator'
+    hotel = fields.pop('hotel_id', HOTEL_ID)
+    room = fields.pop('room', ROOM)
+    sensor = fields.pop('sensor', SENSOR)
+    device = f'{hotel}/{room}/{sensor}'
+    base = [ts, f'{level.upper():<5}', service, f'{device:<28}', f'event={event}', f'msg="{msg}"']
+    for k, v in fields.items():
+        if isinstance(v, bool):
+            v = str(v).lower()
+        base.append(f'{k}={v}')
+    print(' | '.join(base), flush=True)
+
 # -------------- Helper functions  --------------- #
 def env_bool(name: str, default: bool) -> bool:
     """
@@ -152,13 +167,13 @@ def on_connect(client, userdata, flags, reason_code, properties):
     MQTT on_connect callback.
     Publishes initial status and state, subscribes to command topic.
     """
-    print(f"Connected to MQTT with reason_code={reason_code}")
+    log('INFO', 'connect', f'connected to MQTT with reason_code={reason_code}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR)
     online_msg = build_alert(HOTEL_ID, ROOM, SENSOR, kind="actuator_online", severity="INFO")
     client.publish(TOPIC_STATUS, json.dumps(online_msg), qos=1, retain=False)
     boot = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(boot), qos=QOS, retain=True)
     client.subscribe(TOPIC_CMD, qos=QOS)
-    print(f"Connected. Subscribed to {TOPIC_CMD}")
+    log('INFO', 'subscribed', f'subscribed to {TOPIC_CMD}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=TOPIC_CMD)
 
 def on_message(client, userdata, msg):
     """
@@ -177,36 +192,30 @@ def on_message(client, userdata, msg):
     """
     # MQTT message processing
     global light_on, brightness
-    
-    # Only process messages on the command topic
     try:
         data = json.loads(msg.payload.decode("utf-8")) if msg.payload else {}
     except Exception:
-        # Debug log to help identify malformed publishers
         try:
             raw = msg.payload.decode("utf-8", errors="replace") if msg.payload else "<empty>"
         except Exception:
             raw = str(msg.payload)
-        print(f"Malformed JSON on topic={msg.topic}: payload={raw}")
+        log('ERROR', 'malformed-json', f'Malformed JSON on topic={msg.topic}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=msg.topic, error=raw[:80])
         ack = build_ack(None, HOTEL_ID, ROOM, SENSOR, status="failed", error="malformed_json")
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
 
-    # Extract action and correlation ID
     fields = data.get("fields") or {}
     action = (fields.get("action") or "").lower()
     corr = data.get("messageId")
 
-    # Validate action
     if action not in ("on", "off", "toggle", "set_brightness"):
+        log('WARNING', 'cmd-rejected', f'unsupported action: {action}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
         ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="rejected", error=f"unsupported_action:{action}")
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
 
-    # Execute action
     before_on, before_bri = light_on, brightness
 
-    # Change state based on action
     if action == "on":
         light_on = True
         if brightness == 0:
@@ -223,22 +232,26 @@ def on_message(client, userdata, msg):
         except Exception:
             value = None
         if value is None:
+            log('WARNING', 'cmd-rejected', 'missing value for set_brightness', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
             ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="failed", error="missing_value")
             client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
             return
-        brightness = clamp_0_100(value)
+        orig = value
+        value = clamp_0_100(value)
+        if value != orig:
+            log('WARNING', 'brightness-corrected', f'clamped brightness from {orig} to {value}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, correlation_id=corr)
+        brightness = value
         light_on = brightness > 0
 
-    # Publish acknowledgment and new state
+    log('INFO', 'cmd-received', f'command received', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
+
     ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="ok", error="")
     client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+    log('INFO', 'ack-published', 'ack published', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, correlation_id=corr, topic_out=TOPIC_ACK)
 
-    # Publish updated state
     state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
-
-    # Log state change
-    print(f"cmd={action} before_on={before_on} before_bri={before_bri} after_on={light_on} after_bri={brightness} → ack+state emitted")
+    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, before_on=before_on, before_brightness=before_bri, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
 
 def main():
     """
@@ -247,6 +260,7 @@ def main():
 
     Returns: None
     """
+    log('INFO', 'startup', 'started', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, qos=QOS, retain=False, initial_on=INITIAL_ON, initial_brightness=INITIAL_BRIGHTNESS, broker=f'{BROKER}:{BROKER_PORT}')
     client.on_connect = on_connect
     client.on_message = on_message
 
@@ -255,15 +269,26 @@ def main():
     while True:
         try:
             attempts += 1
-            print(f"[mqtt] connecting to {BROKER}:{BROKER_PORT} (attempt {attempts}/{max_attempts})")
+            log('INFO', 'connect-attempt', f'connecting to {BROKER}:{BROKER_PORT}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, attempt=attempts, max_attempts=max_attempts)
             client.connect(BROKER, BROKER_PORT, KEEPALIVE)
-            print("[mqtt] connected")
+            log('INFO', 'connect', 'mqtt connected', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR)
             break
         except Exception as e:
             if attempts >= max_attempts:
+                log('ERROR', 'mqtt-connect-exhausted', f'failed to connect after {max_attempts} attempts', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, error=str(e))
                 raise
-            print(f"[mqtt] connect failed: {e}; retrying in {delay}s...")
+            log('WARNING', 'mqtt-connect-retry', f'connect failed: {e}; retrying in {delay}s', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, error=str(e))
             time.sleep(delay)
+
+    # Heartbeat: publish state every 30 seconds
+    import threading
+    def heartbeat_loop():
+        while True:
+            state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
+            client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
+            log('INFO', 'heartbeat', 'periodic state heartbeat', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
+            time.sleep(30)
+    threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     client.loop_forever()
 

@@ -3,6 +3,24 @@ from collections import defaultdict
 import paho.mqtt.client as mqtt
 import ulid
 
+# --- Logging ---
+def log(level, event, msg, **fields):
+    ts = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime()) + f'.{int(time.time()*1000)%1000:03d}Z'
+    service = 'alert-agent'
+    base = [ts, f'{level.upper():<5}', service]
+    hotel = fields.pop('hotel_id', HOTEL)
+    room = fields.pop('room', ROOM)
+    sensor = fields.pop('sensor', None)
+    device = f'{hotel}/{room}/{sensor}' if sensor else f'{hotel}/{room}'
+    base.append(f'{device:<28}')
+    base.append(f'event={event}')
+    base.append(f'msg="{msg}"')
+    for k, v in fields.items():
+        if isinstance(v, bool):
+            v = str(v).lower()
+        base.append(f'{k}={v}')
+    print(' | '.join(base), flush=True)
+
 # --- Env config ---
 BROKER = os.getenv("MQTT_BROKER", "mosquitto")
 PORT   = int(os.getenv("MQTT_PORT", "1883"))
@@ -18,6 +36,7 @@ DEDUP_WINDOW_S = int(os.getenv("DEDUP_WINDOW_S", "60"))
 LAST_VALUE = {}                 # key -> last value tuple(s) for change detection
 LAST_SEEN  = {}                 # key -> last unix seconds seen
 DEDUPE     = {}                 # dedup_key -> last unix seconds emitted
+PENDING_COMMANDS = {}           # key -> (timestamp, command details)
 LOCK = threading.Lock()
 
 # --- Utils ---
@@ -57,11 +76,23 @@ def publish_alert(client: mqtt.Client, src: dict, alert_type: str, severity: str
     }
     topic = f"{PUB}/{out['tags']['hotel_id']}/{out['tags']['room']}/{out['tags']['sensor']}"
     client.publish(topic, json.dumps(out), qos=1, retain=False)
+    log(
+        'WARNING' if severity.lower() in ('warning','critical') else 'INFO',
+        alert_type,
+        'alert published',
+        hotel_id=out['tags']['hotel_id'],
+        room=out['tags']['room'],
+        sensor=out['tags']['sensor'],
+        value=value,
+        alert_id=out['tags']['alert_id'],
+        topic_out=topic
+    )
 
 # --- Handlers ---
 
 def on_connect(c: mqtt.Client, _u, _f, _rc):
     c.subscribe(SUB, qos=1)
+    log('INFO', 'connect', f'subscribed to {SUB}', hotel_id=HOTEL, room=ROOM)
 
 
 def handle_light_state(client: mqtt.Client, payload: dict):
@@ -116,6 +147,7 @@ def handle_temperature(client: mqtt.Client, payload: dict):
             )
 
 
+
 def on_message(client: mqtt.Client, _u, msg):
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
@@ -128,26 +160,59 @@ def on_message(client: mqtt.Client, _u, msg):
 
     meas = payload.get("measurement")
     tags = payload.get("tags", {})
-
-    # heartbeat touch
     key = device_key(tags)
+
+    # Track commands sent to actuators (e.g., light-actuator)
+    if meas == "light-command":
+        # Record the time and command details
+        with LOCK:
+            PENDING_COMMANDS[key] = (now_s(), payload)
+        log('INFO', 'command-tracked', f'Command tracked for {key}', hotel_id=tags.get('hotel_id'), room=tags.get('room'), sensor=tags.get('sensor'), command=payload.get('fields'))
+        return
+
+    # heartbeat touch (for all other measurements)
     with LOCK:
         LAST_SEEN[key] = now_s()
 
-    # route by measurement
+    # If a state/ack is received, clear any pending command for this actuator
     if meas == "light-state":
+        with LOCK:
+            if key in PENDING_COMMANDS:
+                del PENDING_COMMANDS[key]
+                log('INFO', 'command-ack', f'State/ack received for {key}, clearing pending command', hotel_id=tags.get('hotel_id'), room=tags.get('room'), sensor=tags.get('sensor'))
         handle_light_state(client, payload)
     elif meas == "temperature":
         handle_temperature(client, payload)
 
 
-# --- Offline watchdog ---
+# --- Offline & Command watchdog ---
 
 def offline_loop(client: mqtt.Client, interval_s: int = 10):
     while True:
         time.sleep(interval_s)
         t = now_s()
         to_alert = []
+        # Check for missed actuator acks (pending commands)
+        with LOCK:
+            expired_cmds = []
+            for key, (cmd_time, cmd_payload) in list(PENDING_COMMANDS.items()):
+                age = t - cmd_time
+                if age >= OFFLINE_TIMEOUT_S:
+                    expired_cmds.append((key, age, cmd_payload))
+            for key, age, cmd_payload in expired_cmds:
+                hotel, room, sensor = key.split(":", 2)
+                dedup_key = f"missed-ack:{key}:{int(cmd_time)}"
+                if should_emit(dedup_key):
+                    publish_alert(
+                        client, cmd_payload,
+                        alert_type="actuator_no_ack",
+                        severity="critical",
+                        message=f"No state/ack after command for {OFFLINE_TIMEOUT_S}s (actuator offline)",
+                        value=age
+                    )
+                    log('WARNING', 'actuator-no-ack', f'No state/ack after command for {OFFLINE_TIMEOUT_S}s', hotel_id=hotel, room=room, sensor=sensor, value=age)
+                del PENDING_COMMANDS[key]
+        # Check for regular sensor offline (no events at all)
         with LOCK:
             for key, last in list(LAST_SEEN.items()):
                 age = t - last
@@ -170,13 +235,15 @@ def offline_loop(client: mqtt.Client, interval_s: int = 10):
                     message=f"No events for {OFFLINE_TIMEOUT_S}s (sensor offline)",
                     value=age
                 )
+                log('WARNING', 'sensor-offline', f'sensor offline for {OFFLINE_TIMEOUT_S}s', hotel_id=hotel, room=room, sensor=sensor, value=age)
 
 
 # --- Main ---
 
 def main():
+    log('INFO', 'startup', 'started', hotel_id=HOTEL, room=ROOM, sensor=None, subscribe=SUB, temp_high_c=TEMP_HIGH_C, offline_timeout_s=OFFLINE_TIMEOUT_S, dedup_window_s=DEDUP_WINDOW_S)
     client = mqtt.Client()
-    client.enable_logger()
+    # client.enable_logger()  # disable paho default logging
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(BROKER, PORT)
