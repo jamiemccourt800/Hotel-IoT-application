@@ -1,6 +1,21 @@
 import os, time, json, random, argparse
 import paho.mqtt.client as mqtt
 
+# --- Logging ---
+def log(level, event, msg, **fields):
+    ts = time.strftime('%Y-%m-%dT%H:%M:%S', time.gmtime()) + f'.{int(time.time()*1000)%1000:03d}Z'
+    service = 'sensor'
+    hotel = fields.pop('hotel_id', None)
+    room = fields.pop('room', None)
+    sensor = fields.pop('sensor', None)
+    device = f'{hotel}/{room}/{sensor}' if hotel and room and sensor else ''
+    base = [ts, f'{level.upper():<5}', service, f'{device:<28}', f'event={event}', f'msg="{msg}"']
+    for k, v in fields.items():
+        if isinstance(v, bool):
+            v = str(v).lower()
+        base.append(f'{k}={v}')
+    print(' | '.join(base), flush=True)
+
 def build_payload(hotel_id, room, sensor, temp_c, ts):
     """
     Build telemetry payload.
@@ -48,6 +63,15 @@ def main():
     hotel_id = os.getenv("HOTEL_ID", "hotel1")
     room = os.getenv("ROOM", "1")
     sensor = os.getenv("SENSOR", "temperature-sensor")
+    broker = (
+        os.getenv("MQTT_HOST")
+        or os.getenv("MQTT_BROKER")
+        or os.getenv("BROKER")
+        or "mosquitto"
+    )
+    port = int(os.getenv("MQTT_PORT") or os.getenv("BROKER_PORT") or "1883")
+    qos = int(os.getenv("MQTT_QOS") or os.getenv("QOS") or "1")
+    log('INFO', 'startup', 'started', hotel_id=hotel_id, room=room, sensor=sensor, mode=args.mode, interval_s=args.interval, qos=qos, broker=f'{broker}:{port}')
 
     # MQTT config
     broker = (
@@ -82,15 +106,16 @@ def main():
     while True:
         try:
             attempts += 1
-            print(f"[mqtt] connecting to {broker}:{port} (attempt {attempts}/{max_attempts})")
+            log('INFO', 'connect-attempt', f'connecting to {broker}:{port}', hotel_id=hotel_id, room=room, sensor=sensor, attempt=attempts, max_attempts=max_attempts)
             client.connect(broker, port, keepalive)
             client.loop_start()
-            print("[mqtt] connected")
+            log('INFO', 'connect', 'mqtt connected', hotel_id=hotel_id, room=room, sensor=sensor)
             break
         except Exception as e:
             if attempts >= max_attempts:
+                log('ERROR', 'mqtt-connect-exhausted', f'failed to connect after {max_attempts} attempts', hotel_id=hotel_id, room=room, sensor=sensor, error=str(e))
                 raise
-            print(f"[mqtt] connect failed: {e}; retrying in {delay}s...")
+            log('WARNING', 'mqtt-connect-retry', f'connect failed: {e}; retrying in {delay}s', hotel_id=hotel_id, room=room, sensor=sensor, error=str(e))
             time.sleep(delay)
 
     # On start, publish sensor_online alert
@@ -139,18 +164,20 @@ def main():
     source = csv_source() if args.mode == "csv" else random_source()
 
     # Main loop: publish telemetry
-    print(f"[{sensor}] publishing telemetry to {topic_telemetry}")
+    log('INFO', 'publishing', f'publishing telemetry to {topic_telemetry}', hotel_id=hotel_id, room=room, sensor=sensor, topic_out=topic_telemetry)
+    published_count = 0
     try:
         for ts, temp_c in source:
             payload = build_payload(hotel_id, room, sensor, temp_c, ts)
             client.publish(topic_telemetry, json.dumps(payload), qos=qos)
-            print(f"→ Published {payload}")
+            published_count += 1
+            # No per-message telemetry logs (per requirements)
     except KeyboardInterrupt:
-        print("\nStopping sensor...")
+        log('INFO', 'shutdown', 'stopping sensor', hotel_id=hotel_id, room=room, sensor=sensor)
     finally:
         client.loop_stop()
         client.disconnect()
-        print("Sensor disconnected cleanly.")
+        log('INFO', 'shutdown', 'sensor disconnected cleanly', hotel_id=hotel_id, room=room, sensor=sensor, published_count=published_count)
 
 if __name__ == "__main__":
     main()

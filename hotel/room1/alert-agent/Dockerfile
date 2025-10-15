@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
 	MQTT_PUB=sensors \
 	HOTEL_ID=hotel_01 \
 	ROOM=101 \
-	TEMP_HIGH_C=28 \
+	TEMP_HIGH_C=30 \
 	OFFLINE_TIMEOUT_S=120 \
 	DEDUP_WINDOW_S=60
 CMD ["python", "-m", "app.main"]
