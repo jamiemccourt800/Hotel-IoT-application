@@ -221,6 +221,11 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: 1Password!
       MONGO_INITDB_DATABASE: bookings
+  
+  app-backend:
+    build: ./app/backend
+    ports:
+      - 5005:5000
 
 
 volumes:
