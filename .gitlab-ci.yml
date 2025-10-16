@@ -2,13 +2,6 @@ stages:
   - build
   - run
 
-variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""   # disable TLS for docker:dind
-
-services:
-  - docker:dind
-
 build:
   stage: build
   image: docker:latest
