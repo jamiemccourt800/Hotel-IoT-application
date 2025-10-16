@@ -10,14 +10,15 @@ build:
   script:
     - docker info
     - docker-compose -f central/docker-compose.central.yml build
-    - docker-compose -f hotel/docker-compose.hotel1.yml
+    - docker-compose -f hotel/docker-compose.hotel1.yml build
 
 run:
   stage: run
   image: docker:latest
   script:
     # Start containers in detached mode
-    - docker-compose f central/docker-compose.central.yml -f hotel/docker-compose.hotel1.yml up -d
+    - docker-compose -f central/docker-compose.central.yml up -d
+    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
     # Wait a few seconds for services to boot
     - sleep 10
     # Run a test command (adjust as needed, e.g. curl healthcheck)
