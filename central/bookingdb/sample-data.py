@@ -22,8 +22,8 @@ max_retries = 10
 for attempt in range(max_retries):
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.server_info()  # will raise if not ready
-        print("✅ Connected to MongoDB")
+        client.server_info() 
+        print("Connected to MongoDB")
         break
     except Exception:
         print(f"MongoDB not ready, retrying... ({attempt+1}/{max_retries})")
