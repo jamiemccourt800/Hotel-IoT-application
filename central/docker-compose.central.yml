@@ -209,18 +209,31 @@ services:
     depends_on:
       - bookings
   
+  # mongodb:
+  #   image: mongodb/mongodb-community-server:latest
+  #   container_name: mongodb
+  #   restart: unless-stopped
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - ./booking/tempMongoDB:/data/db
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: 1Password!
+  #     MONGO_INITDB_DATABASE: bookings
+
   mongodb:
-    image: mongodb/mongodb-community-server:latest
-    container_name: mongodb
+    image: mongo:7.0
+    container_name: my-mongo
     restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
     ports:
       - "27017:27017"
     volumes:
-      - ./booking/tempMongoDB:/data/db
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: 1Password!
-      MONGO_INITDB_DATABASE: bookings
+      - ./bookingdb/mongo-data:/data/db
+    command: ["--bind_ip_all"]
   
   app-backend:
     build: ./app/backend
