@@ -3,7 +3,7 @@ stages:
   - run
 
 before_script:
-  - sudo docker system prune -af --volumes
+  - docker system prune -af --volumes
   - apk add --no-cache docker-compose  # install docker-compose inside job runner
 
 build:
