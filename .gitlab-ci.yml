@@ -3,6 +3,7 @@ stages:
   - run
 
 variables:
+  DOCKER_HOST: tcp://docker:2375
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""   # disable TLS for docker:dind
 
