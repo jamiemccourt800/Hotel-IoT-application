@@ -1,0 +1,35 @@
+stages:
+  - build
+  - run
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""   # disable TLS for docker:dind
+
+services:
+  - docker:dind
+
+before_script:
+  - apk add --no-cache docker-compose  # install docker-compose inside job runner
+
+build:
+  stage: build
+  image: docker:latest
+  script:
+    # Build using both docker-compose files
+    - docker-compose -f central/docker-compose.central.yml -f hotel/docker-compose.hotel1.yml build
+
+run:
+  stage: run
+  image: docker:latest
+  script:
+    # Start containers in detached mode
+    - docker-compose f central/docker-compose.central.yml -f hotel/docker-compose.hotel1.yml up -d
+    # Wait a few seconds for services to boot
+    - sleep 10
+    # Run a test command (adjust as needed, e.g. curl healthcheck)
+    - docker ps
+    - docker-compose ps
+  after_script:
+    # Cleanup after job
+    - docker-compose -f docker-compose.yml -f docker-compose.override.yml down
