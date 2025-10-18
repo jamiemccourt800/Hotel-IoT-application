@@ -27,7 +27,4 @@ run:
     # Run a test command (adjust as needed, e.g. curl healthcheck)
     - docker ps
     - docker-compose ps
-  after_script:
-    # Cleanup after job
-    - docker-compose -f central/docker-compose.central.yml down
-    - docker-compose -f hotel/docker-compose.hotel1.yml down
+
