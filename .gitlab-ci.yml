@@ -1,21 +1,13 @@
 stages:
-  # - build
-  - run
+  - build-run
+  - test
 
 before_script:
   - docker system prune -af --volumes
-  - apk add --no-cache docker-compose  # install docker-compose inside job runner
+  - apk add --no-cache docker-compose curl  # install docker-compose inside job runner
 
-# build:
-#   stage: build
-#   image: docker:latest
-#   script:
-#     - docker info
-#     - docker-compose -f central/docker-compose.central.yml build
-#     - docker-compose -f hotel/docker-compose.hotel1.yml build
-
-run:
-  stage: run
+build-run:
+  stage: build-run
   image: docker:latest
   script:
     - docker network create iot-net || true
@@ -25,3 +17,19 @@ run:
     - sleep 10
     # Run a test command (adjust as needed, e.g. curl healthcheck)
     - docker ps
+  artifacts:
+    expire_in: 30m
+    paths:
+      - central/
+      - hotel/
+  
+test:
+  stage: test
+  image: docker:latest
+  script:
+    # Test FastAPI endpoint (adjust port as needed!)
+    - docker-compose -f central/docker-compose.central.yml up -d
+    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
+    - sleep 10
+    - curl -f http://localhost:8000/health
+    - curl -f -X POST http://localhost:8000/actuator/light/hotel1/101/on
