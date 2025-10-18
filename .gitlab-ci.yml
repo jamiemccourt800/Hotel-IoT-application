@@ -31,5 +31,5 @@ test:
     - docker-compose -f central/docker-compose.central.yml up -d
     - docker-compose -f hotel/docker-compose.hotel1.yml up -d
     - sleep 10
-    - curl -f http://localhost:8000/health
+    - curl -f http://localhost:5000/health
     - curl -f -X POST http://localhost:8000/actuator/light/hotel1/101/on
