@@ -53,7 +53,7 @@ services:
     image: telegraf:latest
     container_name: telegraf
     volumes:
-      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf:/etc/telegraf:ro
     depends_on:
       - kafka
       - victoria-metrics
