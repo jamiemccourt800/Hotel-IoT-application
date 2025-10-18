@@ -52,6 +52,7 @@ services:
   telegraf:
     image: telegraf:latest
     container_name: telegraf
+    restart: unless-stopped
     volumes:
       - ./telegraf:/etc/telegraf:ro
     depends_on:
@@ -89,8 +90,9 @@ services:
       KAFKA_TOPIC: "actuator"
       CLIENT_ID: "fastapi-producer"
       ACKS: "all"
-      RETRIES: 3
+      RETRIES: 10
       LINGER_MS: 5
+    restart: unless-stopped
     depends_on:
       - victoria-metrics
       - kafka
