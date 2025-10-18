@@ -25,4 +25,3 @@ run:
     - sleep 10
     # Run a test command (adjust as needed, e.g. curl healthcheck)
     - docker ps
-    - docker-compose ps
