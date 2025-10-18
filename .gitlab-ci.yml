@@ -20,7 +20,9 @@ run:
   script:
     # Start containers in detached mode
     - docker network create iot-net || true
-    - docker-compose -f central/docker-compose.central.yml up -d
+    - cd central
+    - docker-compose -f docker-compose.central.yml up -d
+    - cd ../hotel
     - docker-compose -f hotel/docker-compose.hotel1.yml up -d
     # Wait a few seconds for services to boot
     - sleep 10
