@@ -1,18 +1,18 @@
 stages:
-  - build
+  # - build
   - run
 
 before_script:
   - docker system prune -af --volumes
   - apk add --no-cache docker-compose  # install docker-compose inside job runner
 
-build:
-  stage: build
-  image: docker:latest
-  script:
-    - docker info
-    - docker-compose -f central/docker-compose.central.yml build
-    - docker-compose -f hotel/docker-compose.hotel1.yml build
+# build:
+#   stage: build
+#   image: docker:latest
+#   script:
+#     - docker info
+#     - docker-compose -f central/docker-compose.central.yml build
+#     - docker-compose -f hotel/docker-compose.hotel1.yml build
 
 run:
   stage: run
