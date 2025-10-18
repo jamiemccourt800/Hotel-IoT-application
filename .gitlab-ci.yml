@@ -18,15 +18,11 @@ run:
   stage: run
   image: docker:latest
   script:
-    # Start containers in detached mode
     - docker network create iot-net || true
-    - cd central
-    - docker-compose -f docker-compose.central.yml up -d
-    - cd ../hotel
-    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
+    - cd central && docker-compose -f docker-compose.central.yml up -d && cd ..
+    - cd hotel && docker-compose -f docker-compose.hotel1.yml up -d && cd ..
     # Wait a few seconds for services to boot
     - sleep 10
     # Run a test command (adjust as needed, e.g. curl healthcheck)
     - docker ps
     - docker-compose ps
-
