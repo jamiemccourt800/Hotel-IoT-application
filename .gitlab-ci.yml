@@ -12,6 +12,6 @@ build-run:
     - docker network create iot-net || true
     - docker-compose -f central/docker-compose.central.yml up -d
     - docker-compose -f hotel/docker-compose.hotel1.yml up -d
-    - sleep 10
+    - sleep 60
     - docker ps
     - curl -f http://localhost:5000/health
