@@ -99,6 +99,25 @@ services:
     volumes:
       - ./command:/app
 
+  automation:
+    build: automation
+    container_name: automation
+    ports:
+      - "5008:5000"
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB: bookings
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASS: ${MONGO_PASS}
+    depends_on:
+      - victoria-metrics
+      - command
+      - app-backend
+    networks:
+      - iot-net
+    volumes:
+      - ./automation:/app
   ## BOOKING SYSTEM
   
   nginx:
@@ -239,6 +258,7 @@ services:
     build: ./app/backend
     ports:
       - 5005:5000
+
 
 
 volumes:
