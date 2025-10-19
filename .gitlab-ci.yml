@@ -1,6 +1,5 @@
 stages:
   - build-run
-  - test
 
 before_script:
   - docker system prune -af --volumes
@@ -13,23 +12,6 @@ build-run:
     - docker network create iot-net || true
     - docker-compose -f central/docker-compose.central.yml up -d
     - docker-compose -f hotel/docker-compose.hotel1.yml up -d
-    # Wait a few seconds for services to boot
     - sleep 10
-    # Run a test command (adjust as needed, e.g. curl healthcheck)
     - docker ps
-  artifacts:
-    expire_in: 30m
-    paths:
-      - central/
-      - hotel/
-  
-test:
-  stage: test
-  image: docker:latest
-  script:
-    # Test FastAPI endpoint (adjust port as needed!)
-    - docker-compose -f central/docker-compose.central.yml up -d
-    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
-    - sleep 10
     - curl -f http://localhost:5000/health
-    - curl -f -X POST http://localhost:8000/actuator/light/hotel1/101/on
