@@ -52,8 +52,7 @@ services:
       HOTEL_ID: hotel_01
       ROOM: 101
       SENSOR: light-actuator
-      BROKER: mosquitton
-      
+      BROKER: mosquitto
       BROKER_PORT: 1883
       QOS: 1
       KEEPALIVE: 60

@@ -1,32 +1,53 @@
-# temperature-sensor
+# Temperature Sensor — Room IoT Device
 
-A standalone containerized emulator that publishes temperature telemetry to MQTT.
+This service simulates a room temperature sensor that continuously publishes temperature readings to the local MQTT broker.
+It represents an IoT device within a hotel room.
 
+## Overview
+**Publishes:** `sensors/<hotel_id>/<room>/<sensor>`  
+**Measurement:** `temperature`
 
-## Topics
-- Telemetry: `hotel_01/101/temperature-sensor/telemetry`
-- Status (online/offline): `hotel_01/101/temperature-sensor/status`
+### Example message
+```json
+{
+  "measurement": "temperature",
+  "tags": {"hotel_id": "hotel_01", "room": "101", "sensor": "temperature-sensor"},
+  "fields": {"temperatureC": 23.7},
+  "timestamp": 1695800105123
+}
+```
 
+## Configuration
+| Variable | Default | Description |
+|-----------|----------|-------------|
+| MQTT_BROKER | mosquitto | MQTT broker host |
+| MQTT_PORT | 1883 | MQTT broker port |
+| HOTEL_ID | hotel_01 | Hotel identifier |
+| ROOM | 101 | Room identifier |
+| SENSOR | temperature-sensor | Sensor name |
+| SPEED | 1.0 | Replay speed multiplier |
+| MQTT_QOS | 1 | MQTT QoS level |
+| MQTT_RETAIN | false | Retain flag |
 
-## Configuration (env)
-- HOTEL_ID, ROOM, SENSOR
-- BROKER, BROKER_PORT, QOS, KEEPALIVE
-- MODE (`random`|`csv`), INTERVAL, SPEED
- (csv mode only): path to a CSV file.
-  - Supported schemas: "temperature" or "timestamp,temperature"
-  - If only "temperature" exists, readings emit every INTERVAL seconds
-  - With "timestamp,temperature", time deltas are scaled by SPEED
-  - Ignored when MODE=random; START_TEMP and TARGET_TEMP are ignored when MODE=csv
-  - Example: ./data/room101.csv
-
-## Build & Run (with a local broker)
+## Run
 ```bash
-docker run -d --name mqtt-broker -p 1883:1883 eclipse-mosquitto:2
+docker compose -f hotel/docker-compose.hotel1.yml up -d temperature-sensor
+```
 
-docker build -t temperature-sensor:latest .
-docker run --rm --name temperature-sensor-101 \
-  -e HOTEL_ID=hotel_01 -e ROOM=101 -e SENSOR=temperature-sensor \
-  -e BROKER=host.docker.internal -e BROKER_PORT=1883 \
-  -e MODE=random -e INTERVAL=1.0 -e SPEED=1.0 \
-  temperature-sensor:latest
+## Testing / Verify
+
+### 1) Verify in Grafana (VictoriaMetrics)
+1. Log in to Grafana.
+2. Go to **Explore** → Select the **VictoriaMetrics** datasource.
+3. Run this query:
+```
+temperature_temperatureC{db="victoriametrics",host="fed469becd80",hotel_id="hotel_01",room="101",sensor="temperature-sensor"}
+```
+You should see a live graph of temperature readings over time.
+
+### 2) Watch MQTT logs from the container
+To confirm the sensor is publishing and the MQTT broker is receiving:
+```bash
+docker compose -f hotel/docker-compose.hotel1.yml logs -f temperature-sensor
+docker compose -f hotel/docker-compose.hotel1.yml logs -f mosquitto
 ```

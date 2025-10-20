@@ -135,7 +135,7 @@ def build_state(hotel_id, room, sensor, on: bool, brightness: int):
 HOTEL_ID = os.environ.get("HOTEL_ID", "hotel_01")
 ROOM = str(os.environ.get("ROOM", "101"))
 SENSOR = os.environ.get("SENSOR", "light-actuator")
-BROKER = os.environ.get("BROKER", "mqtt-broker")
+BROKER = os.environ.get("BROKER", "mosquitto")
 BROKER_PORT = int(os.environ.get("BROKER_PORT", 1883))
 QOS = int(os.environ.get("QOS", 1))
 KEEPALIVE = int(os.environ.get("KEEPALIVE", 60))
