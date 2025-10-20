@@ -4,7 +4,7 @@ import json
 import paho.mqtt.client as mqtt
 
 # MQTT broker settings (adjust as needed)
-BROKER = 'localhost'
+BROKER = 'mosquitto'
 PORT = 1883
 
 
@@ -37,6 +37,19 @@ results = {
 light_state_prev = None
 light_status_prev = None
 
+def subscribe_and_listen():
+    client = mqtt.Client()
+    client.connect(BROKER, PORT, 60)
+    # Subscribe to both the direct sensor topic and the Kafka-forwarded topic
+    client.subscribe([(TEMP_TOPIC, 0), (KAFKA_TEMP_TOPIC, 0), (LIGHT_STATE_TOPIC, 0), (ALERT_TOPIC, 0), (f'{HOTEL_ID}/{ROOM}/{LIGHT_SENSOR}/status', 0)])
+    client.message_callback_add(TEMP_TOPIC, on_temp_message)
+    client.message_callback_add(KAFKA_TEMP_TOPIC, on_temp_message)
+    client.message_callback_add(LIGHT_STATE_TOPIC, on_light_state_message)
+    client.message_callback_add(f'{HOTEL_ID}/{ROOM}/{LIGHT_SENSOR}/status', on_light_status_message)
+    client.message_callback_add(ALERT_TOPIC, on_alert_message)
+    client.loop_start()
+    return client
+
 def on_temp_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
@@ -67,8 +80,8 @@ def on_light_state_message(client, userdata, msg):
 def on_light_status_message(client, userdata, msg):
     global light_status_prev
     try:
-        payload = json.loads(msg.payload.decode())
         if payload.get('measurement') == 'alert':
+            payload = json.loads(msg.payload.decode())
             # Status topic is used for online/offline alerts
             kind = payload.get('fields', {}).get('kind')
             if kind in ("actuator_online", "actuator_offline"):
@@ -86,18 +99,7 @@ def on_alert_message(client, userdata, msg):
     except Exception:
         pass
 
-def subscribe_and_listen():
-    client = mqtt.Client()
-    client.connect(BROKER, PORT, 60)
-    # Subscribe to both the direct sensor topic and the Kafka-forwarded topic
-    client.subscribe([(TEMP_TOPIC, 0), (KAFKA_TEMP_TOPIC, 0), (LIGHT_STATE_TOPIC, 0), (ALERT_TOPIC, 0), (f'{HOTEL_ID}/{ROOM}/{LIGHT_SENSOR}/status', 0)])
-    client.message_callback_add(TEMP_TOPIC, on_temp_message)
-    client.message_callback_add(KAFKA_TEMP_TOPIC, on_temp_message)
-    client.message_callback_add(LIGHT_STATE_TOPIC, on_light_state_message)
-    client.message_callback_add(f'{HOTEL_ID}/{ROOM}/{LIGHT_SENSOR}/status', on_light_status_message)
-    client.message_callback_add(ALERT_TOPIC, on_alert_message)
-    client.loop_start()
-    return client
+
 
 def test_light_actuator(client):
     # Turn light on, then off using correct message format

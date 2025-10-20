@@ -135,7 +135,7 @@ def build_state(hotel_id, room, sensor, on: bool, brightness: int):
 HOTEL_ID = os.environ.get("HOTEL_ID", "hotel_01")
 ROOM = str(os.environ.get("ROOM", "101"))
 SENSOR = os.environ.get("SENSOR", "light-actuator")
-BROKER = os.environ.get("BROKER", "mqtt-broker")
+BROKER = os.environ.get("BROKER", "mosquitto")
 BROKER_PORT = int(os.environ.get("BROKER_PORT", 1883))
 QOS = int(os.environ.get("QOS", 1))
 KEEPALIVE = int(os.environ.get("KEEPALIVE", 60))
@@ -172,8 +172,14 @@ def on_connect(client, userdata, flags, reason_code, properties):
     client.publish(TOPIC_STATUS, json.dumps(online_msg), qos=1, retain=False)
     boot = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(boot), qos=QOS, retain=True)
+    # Subscribe to both the original command topic and the executed_actions topic for actuator commands
+    # Subscribe to original command topic, executed_actions, and Kafka-style actuator topic
     client.subscribe(TOPIC_CMD, qos=QOS)
-    log('INFO', 'subscribed', f'subscribed to {TOPIC_CMD}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=TOPIC_CMD)
+    EXEC_ACTIONS_TOPIC = f"executed_actions/{HOTEL_ID}/{ROOM}/{SENSOR}"
+    client.subscribe(EXEC_ACTIONS_TOPIC, qos=QOS)
+    KAFKA_ACTUATOR_TOPIC = f"actuators.{HOTEL_ID}.{ROOM}.light-actuator.cmd"
+    client.subscribe(KAFKA_ACTUATOR_TOPIC, qos=QOS)
+    log('INFO', 'subscribed', f'subscribed to {TOPIC_CMD}, {EXEC_ACTIONS_TOPIC}, {KAFKA_ACTUATOR_TOPIC}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=f'{TOPIC_CMD},{EXEC_ACTIONS_TOPIC},{KAFKA_ACTUATOR_TOPIC}')
 
 def on_message(client, userdata, msg):
     """
@@ -204,9 +210,22 @@ def on_message(client, userdata, msg):
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
 
-    fields = data.get("fields") or {}
-    action = (fields.get("action") or "").lower()
-    corr = data.get("messageId")
+    # If this is from executed_actions, extract the command from the 'body' field
+    if msg.topic.startswith("executed_actions/"):
+        # The actual actuator command is in data['body']
+        body = data.get("body", {})
+        fields = body.get("fields") or {}
+        action = (fields.get("action") or "").lower()
+        corr = body.get("messageId")
+    # If this is from the Kafka-style actuator topic, treat as direct actuator command
+    elif msg.topic.startswith("actuators.") and msg.topic.endswith(".light-actuator.cmd"):
+        fields = data.get("fields") or {}
+        action = (fields.get("action") or "").lower()
+        corr = data.get("messageId")
+    else:
+        fields = data.get("fields") or {}
+        action = (fields.get("action") or "").lower()
+        corr = data.get("messageId")
 
     if action not in ("on", "off", "toggle", "set_brightness"):
         log('WARNING', 'cmd-rejected', f'unsupported action: {action}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
@@ -251,7 +270,7 @@ def on_message(client, userdata, msg):
 
     state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
-    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, before_on=before_on, before_brightness=before_bri, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
+    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, before_on=before_bri, before_brightness=before_bri, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
 
 def main():
     """
