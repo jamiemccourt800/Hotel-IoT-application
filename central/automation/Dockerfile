@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # Copy service code
 COPY . /app
 
-EXPOSE 5102
+EXPOSE 5000
 
 # Start FastAPI app with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5102"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000"]

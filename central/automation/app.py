@@ -19,6 +19,9 @@ MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
 
 COMMAND_BASE_URL = os.getenv("COMMAND_BASE_URL", "http://command:5000")
+# VictoriaMetrics base URL; defaults to the service name on Docker network
+VICTORIA_BASE_URL = os.getenv("VICTORIA_BASE_URL", "http://victoria-metrics:8428")
+
 REQUEST_TIMEOUT_SEC = float(os.getenv("REQUEST_TIMEOUT_SEC", "5"))
 AUTOMATION_PORT = int(os.getenv("PORT", os.getenv("AUTOMATION_PORT", "5102")))
 
@@ -63,15 +66,34 @@ async def command_health():
     return details
 
 
+# VictoriaMetrics health check
+async def victoria_health():
+    details = {"ok": False}
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SEC) as http:
+            r = await http.get(f"{VICTORIA_BASE_URL}/health")
+            details["status_code"] = r.status_code
+            details["ok"] = 200 <= r.status_code < 300
+    except Exception as e:
+        details["ok"] = False
+        details["error"] = str(e)
+    return details
+
+
 @app.get("/health")
 async def health():
     mongo_task = asyncio.create_task(mongo_health())
     command_task = asyncio.create_task(command_health())
-    mongo_res, command_res = await asyncio.gather(mongo_task, command_task)
-    overall_ok = bool(mongo_res.get("ok") and command_res.get("ok"))
+    victoria_task = asyncio.create_task(victoria_health())
+    mongo_res, command_res, victoria_res = await asyncio.gather(mongo_task, command_task, victoria_task)
+    overall_ok = bool(mongo_res.get("ok") and command_res.get("ok") and victoria_res.get("ok"))
     status = 200 if overall_ok else 503
     return JSONResponse(
-        content={"ok": overall_ok, "service": "automation", "details": {"mongo": mongo_res, "command": command_res}},
+        content={
+            "ok": overall_ok,
+            "service": "automation",
+            "details": {"mongo": mongo_res, "command": command_res, "victoria": victoria_res},
+        },
         status_code=status,
     )
 
