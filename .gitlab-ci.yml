@@ -1,18 +1,18 @@
 stages:
-  - build-run
+  - build
+  - run
 
-before_script:
-  - docker system prune -af --volumes
-  - apk add --no-cache docker-compose curl  # install docker-compose inside job runner
-
-build-run:
-  stage: build-run
+build:
+  stage: build
   image: docker:latest
   script:
     - docker network create iot-net || true
-    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
-    - docker-compose -f central/docker-compose.central.yml up -d
-    - docker logs command
-    - sleep 60
-    - docker ps
-    - curl -f http://localhost:5000/health
+    - docker compose -f hotel/docker-compose.hotel1.yml build .
+    - docker compose -f central/docker-compose.central.yml build .
+
+run:
+  stage: run
+  image: docker:latest
+  script:
+    - docker compose -f hotel/docker-compose.hotel1.yml up -d
+    - docker compose -f central/docker-compose.central.yml up -d
