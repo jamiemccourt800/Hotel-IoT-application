@@ -2,6 +2,9 @@ stages:
   - build
   - run
 
+after_script:
+  - sudo chown -R $(id -u):$(id -g) central/victoria-metrics-data central/grafana/data || true
+
 build:
   stage: build
   image: docker:latest
