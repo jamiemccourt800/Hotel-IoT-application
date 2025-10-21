@@ -7,8 +7,8 @@ build:
   image: docker:latest
   script:
     - docker network create iot-net || true
-    - docker compose -f hotel/docker-compose.hotel1.yml build
-    - docker compose -f central/docker-compose.central.yml build
+    - sudo docker compose -f hotel/docker-compose.hotel1.yml build
+    - sudo docker compose -f central/docker-compose.central.yml build
   after_script:
   - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
 
