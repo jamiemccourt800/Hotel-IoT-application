@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react'
 import {Switch} from '@mui/material'
 import LightBulb from '../components/lightbulb/light-bulb'
 import TemperatureSlider from '../components/temperature-slider/temp-slider'
+import axiosInstance from '../utils/axiosInstance'
 
 const LightControl = ({on = false}) => {
 
     const [lightOn, setLightOn] = useState(on)
+
+    useEffect(() => {
+      axiosInstance.get('/health')
+      .then((res) => console.log(res.data))
+    }, [lightOn])
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -18,7 +24,6 @@ const LightControl = ({on = false}) => {
         onClick={() => setLightOn(!lightOn)}
         className="scale-125"
       />
-      {/* <TemperatureSlider/> */}
     </div>
   </div>
 </div>
