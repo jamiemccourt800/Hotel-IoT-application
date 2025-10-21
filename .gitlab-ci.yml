@@ -16,3 +16,4 @@ run:
   script:
     - docker compose -f hotel/docker-compose.hotel1.yml up -d
     - docker compose -f central/docker-compose.central.yml up -d
+    - curl http://127.0.0.1/health
