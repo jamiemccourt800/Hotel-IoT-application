@@ -43,7 +43,7 @@ services:
     - "-storageDataPath=/victoria-metrics-data"
     - "-selfScrapeInterval=5s"
     volumes:
-      - ./victoria-metrics-data:/victoria-metrics-data
+      - victoria-metrics-data:/victoria-metrics-data
     ports:
       - "8428:8428"
     networks:
@@ -74,7 +74,7 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: admin
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
     depends_on:
       - victoria-metrics
     networks:
@@ -235,7 +235,7 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./bookingdb/mongo-data:/data/db
+      - mongodb-data:/data/db
     command: ["--bind_ip_all"]
   
   app-backend:
@@ -245,8 +245,9 @@ services:
 
 
 volumes:
-  mongodb:
-    external: true
+  victoria-metrics-data:
+  grafana-data:
+  mongodb-data:
 
 networks:
   iot-net:
