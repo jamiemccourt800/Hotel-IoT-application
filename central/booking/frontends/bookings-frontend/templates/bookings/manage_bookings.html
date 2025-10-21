@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Bookings • Booking Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
+</head>
+<body>
+  {% include 'spanel.html' %}
+  <main style="max-width:1100px; margin:0 auto; padding:1.5rem clamp(1rem,4vw,3rem) 3rem;">
+    <h1 style="margin:0 0 1rem; font-size:1.45rem; letter-spacing:-.5px; display:flex; align-items:center; gap:.65rem;">Manage Bookings</h1>
+    <div id="mb-status" class="status" aria-live="polite"></div>
+    <div class="panel" style="padding:1.25rem 1.4rem 1.8rem;">
+      <div style="display:flex; gap:.6rem; align-items:center; margin-bottom:.75rem; flex-wrap:wrap;">
+        <label>Status:
+          <select id="filter-status">
+            <option value="">All</option>
+            <option value="pending" selected>Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="denied">Denied</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </label>
+        <label>Hotel ID: <input id="filter-hotel" type="text" placeholder="(optional)" /></label>
+        <label>User: <input id="filter-user" type="text" placeholder="(optional)" /></label>
+        <button id="btn-refresh" class="primary" type="button">Refresh</button>
+      </div>
+      <div id="mb-list" class="bookings-list"></div>
+    </div>
+  </main>
+  <footer style="text-align:center; padding:2rem 0 3rem; font-size:.7rem; color:var(--text-dim);">© <span id="year"></span> Booking Platform • Manage Bookings</footer>
+  <py-script src="{{ url_for('static', filename='py/manage_bookings.py') }}"></py-script>
+</body>
+</html>

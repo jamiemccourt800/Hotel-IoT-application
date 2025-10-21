@@ -1,0 +1,4 @@
+fastapi
+flask
+paho-mqtt
+kafka-python

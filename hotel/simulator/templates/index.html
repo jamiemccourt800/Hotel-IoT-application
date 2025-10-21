@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Room Control</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2rem; }
+    form { margin: 1rem 0; }
+  </style>
+  <script>
+    const socket = io();
+    socket.on('state_update', (data) => {
+      document.getElementById('temp').textContent = data.state.temperature.toFixed(1);
+      document.getElementById('target').textContent = data.state.target_temperature.toFixed(1);
+      document.getElementById('light').textContent = data.state.light ? 'ON' : 'OFF';
+    });
+  </script>
+  </head>
+  <body>
+    <h1>Room Control</h1>
+    <p>Temp: <span id="temp">{{ state.temperature }}</span>°C</p>
+    <p>Target: <span id="target">{{ state.target_temperature }}</span>°C</p>
+    <p>Light: <span id="light">{{ 'ON' if state.light else 'OFF' }}</span></p>
+
+    <form method="POST" action="/set_temp">
+      <label>Set target: <input type="number" name="temperature" step="0.1" value="{{ state.target_temperature }}" /></label>
+      <button type="submit">Apply</button>
+    </form>
+
+    <form method="POST" action="/toggle_light">
+      <button type="submit">Toggle Light</button>
+    </form>
+  </body>
+</html>
