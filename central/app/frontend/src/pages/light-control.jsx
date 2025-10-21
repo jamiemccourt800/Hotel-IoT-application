@@ -8,8 +8,8 @@ const LightControl = ({on = false}) => {
     const [lightOn, setLightOn] = useState(on)
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-blue-100 to-blue-50">
-  <div className="p-8 bg-white rounded-2xl shadow-lg text-center space-y-6">
+    <div className="flex flex-col items-center justify-center">
+  <div className="p-8 bg-white rounded-2xl shadow-lg text-center">
     <LightBulb lighton={lightOn} />
 
     <div className="flex flex-col items-center space-y-2">
