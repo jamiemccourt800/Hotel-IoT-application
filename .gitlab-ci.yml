@@ -2,15 +2,11 @@ stages:
   - build
   - run
 
-before_script:
-  - sudo chown -R $(id -u):$(id -g) central/victoria-metrics-data central/grafana/data || true
-after_script:
-  - sudo chown -R $(id -u):$(id -g) central/victoria-metrics-data central/grafana/data || true
-
 build:
   stage: build
   image: docker:latest
   script:
+    - sudo chown -R $(id -u):$(id -g) central/victoria-metrics-data central/grafana/data || true
     - docker network create iot-net || true
     - docker compose -f hotel/docker-compose.hotel1.yml build
     - docker compose -f central/docker-compose.central.yml build
