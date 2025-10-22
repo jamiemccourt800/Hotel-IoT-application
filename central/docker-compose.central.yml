@@ -238,11 +238,16 @@ services:
       - mongodb-data:/data/db
     command: ["--bind_ip_all"]
   
-  app-backend:
-    build: ./app/backend
+  app-frontend:
+    build: ./app/frontend
     ports:
-      - 5005:5000
-
+      - 3001:3000
+    volumes:
+      - ./app/frontend:/app
+      - /app/node_modules
+    environment:
+      REACT_APP_HOTELID: hotel_01
+      REACT_APP_ROOMID: 101
 
 volumes:
   victoria-metrics-data:

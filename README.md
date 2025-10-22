@@ -37,6 +37,7 @@ Current API Calls:
 - VictoriaMetrics: http://localhost:8428
 - Node-RED (Hotel 1): http://localhost:1881
 - Simulator UI (Hotel 1): http://localhost:5001
+- Frontend (React): http://localhost:3001
 
 ## Topics
 

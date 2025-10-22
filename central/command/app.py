@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
 from kafka_producer import start_producer, stop_producer, send_message
@@ -23,6 +24,18 @@ async def lifespan(app: FastAPI):
     logger.info(msg)
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost:3001"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 async def health():
