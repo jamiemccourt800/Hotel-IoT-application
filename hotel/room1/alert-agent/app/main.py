@@ -2,6 +2,13 @@ import json, os, time, threading
 from collections import defaultdict
 import paho.mqtt.client as mqtt
 import ulid
+try:
+    # when run as a package
+    from . import rules
+except Exception:
+    # when tests load the file directly (no package context), import by path
+    import importlib
+    rules = importlib.import_module('hotel.room1.alert-agent.app.rules')
 
 # --- Logging ---
 def log(level, event, msg, **fields):
@@ -134,16 +141,20 @@ def handle_temperature(client: mqtt.Client, payload: dict):
     fields = payload.get("fields", {})
     key = device_key(tags)
 
-    c = fields.get("temperatureC")
-    if isinstance(c, (int, float)) and c >= TEMP_HIGH_C:
-        dedup_key = f"temp-high:{key}:{int(c)}"
+    # Use pure rules.evaluate to determine if an alert should be emitted.
+    alert = rules.evaluate(payload)
+    if alert:
+        # derive a dedupe key based on the numeric value
+        c = payload.get('fields', {}).get('temperatureC')
+        dedup_key = f"temp-high:{key}:{int(c) if isinstance(c, (int, float)) else 'nan'}"
         if should_emit(dedup_key):
+            # publish_alert expects individual pieces; use alert['fields'] values
             publish_alert(
                 client, payload,
-                alert_type="temp_high",
-                severity="warning",
-                message=f"High temperature {c}°C",
-                value=c
+                alert_type=alert['fields'].get('alert_type', 'temp_high'),
+                severity=alert['fields'].get('severity', 'warning'),
+                message=alert['fields'].get('message', ''),
+                value=alert['fields'].get('value')
             )
 
 
@@ -256,3 +267,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Expose test-friendly API at module level
+evaluate = rules.evaluate
+check_temperature_alert = rules.check_temperature_alert
+handle = rules.handle

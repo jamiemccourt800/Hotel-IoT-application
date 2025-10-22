@@ -60,33 +60,24 @@ Use Node-RED in each hotel to send actuator commands to the local Mosquitto brok
 
 These will switch lights or change thermostat locally, while the action event is reported to central Kafka.
 
-## Run iot-simulator 
+## Developer: run tests (PowerShell)
 
-1) Run as part of the hotel compose (recommended)
-
-From the repo root, start the hotel stack (this launches a local Mosquitto instance, the simulator container, Node-RED and the mqtt->kafka bridge for that hotel):
+Preferred: use the Makefile which creates/uses the project venv:
 
 ```powershell
-docker compose -f docker-compose.hotel1.yml up -d --build
+# create venv and install test deps (one-time)
+make init
+
+# run unit tests
+make unit
 ```
 
-Repeat for hotel2 if required:
+Fallback (avoid Makefile):
 
 ```powershell
-docker compose -f docker-compose.hotel2.yml up -d --build
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements-test.txt
+.venv\Scripts\python.exe -m pytest -q tests/unit --cov=. --junitxml=reports/unit.xml
 ```
 
-2) Run the simulator container standalone (advanced)
-
-You can also run the simulator image by itself. The simulator image is built from `iot-simulator/Dockerfile`.
-
-Example (runs the simulator container and points it at a broker on the Docker network named `mosquitto`):
-
-```powershell
-# build image (from repo root)
-docker build -t iot-simulator:local ./iot-simulator
-
-# run simulator container (connects to mosquitto on the 'default' compose network)
-docker run --rm --network iot-net --name iot-sim -e MQTT_BROKER=mosquitto -e MQTT_PORT=1883 iot-simulator:local
-```
 
