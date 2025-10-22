@@ -117,10 +117,12 @@ services:
       MONGO_DB: bookings
       MONGO_USER: ${MONGO_USER}
       MONGO_PASS: ${MONGO_PASS}
+      VICTORIA_BASE_URL: "http://victoria-metrics:8428"
+      COMMAND_BASE_URL: "http://command:5000"
+
     depends_on:
       - victoria-metrics
       - command
-      - app-backend
       - mongodb
     networks:
       - iot-net
