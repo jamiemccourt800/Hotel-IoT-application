@@ -47,7 +47,11 @@ services:
     ports:
       - "8428:8428"
     networks:
-      - victoriametrics
+      victoriametrics:
+        aliases:
+          - victoria-metrics
+
+
 
 
   telegraf:
@@ -102,7 +106,30 @@ services:
     volumes:
       - ./command:/app
 
-  # ## BOOKING SYSTEM
+  automation:
+    build: automation
+    container_name: automation
+    ports:
+      - "5012:5000"
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB: bookings
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASS: ${MONGO_PASS}
+      VICTORIA_BASE_URL: "http://victoria-metrics:8428"
+      COMMAND_BASE_URL: "http://command:5000"
+
+    depends_on:
+      - victoria-metrics
+      - command
+      - mongodb
+    networks:
+      - iot-net
+      - victoriametrics
+    volumes:
+      - ./automation:/app
+  ## BOOKING SYSTEM
   
   # nginx:
   #   image: nginx:1.27-alpine
@@ -237,6 +264,10 @@ services:
     volumes:
       - mongodb-data:/data/db
     command: ["--bind_ip_all"]
+    networks:
+      iot-net:
+        aliases:
+          - mongodb
   
   app-frontend:
     build: ./app/frontend
@@ -248,6 +279,7 @@ services:
     environment:
       REACT_APP_HOTELID: hotel_01
       REACT_APP_ROOMID: 101
+
 
 volumes:
   victoria-metrics-data:
