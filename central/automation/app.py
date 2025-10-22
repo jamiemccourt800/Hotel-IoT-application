@@ -35,9 +35,38 @@ db = client[MONGO_DB]
 
 app = FastAPI()
 
+# Start background tasks
+try:
+    from lights import light_controller_loop, LIGHTS_ENABLED, LIGHT_HOTEL_ID, LIGHT_ROOMS, evaluate_room
+except Exception:
+    # lights module is optional at import time; runtime errors will surface in logs
+    light_controller_loop = None
+    LIGHTS_ENABLED = False
+    LIGHT_HOTEL_ID = None
+    LIGHT_ROOMS = []
+    evaluate_room = None
+
+@app.on_event("startup")
+async def _startup():
+    if LIGHTS_ENABLED and callable(light_controller_loop):
+        asyncio.create_task(light_controller_loop())
+
 @app.get("/")
 async def root():
     return {"service": "automation", "ok": True}
+
+
+@app.get("/lights/scan")
+async def lights_scan():
+    if evaluate_room is None or LIGHT_HOTEL_ID is None:
+        return JSONResponse(status_code=503, content={"ok": False, "error": "lights module not available"})
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SEC) as http:
+            tasks = [asyncio.create_task(evaluate_room(http, LIGHT_HOTEL_ID, room)) for room in LIGHT_ROOMS]
+            results = await asyncio.gather(*tasks)
+        return JSONResponse(content={"ok": True, "results": results}, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={"ok": False, "error": str(e)}, status_code=500)
 
 
 async def mongo_health():
