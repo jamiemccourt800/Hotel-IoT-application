@@ -35,11 +35,15 @@ def build_payload(hotel_id, room, sensor, temp_c, ts):
 
     # Returns a dict like:
     return {
-        "measurement": "temperature",
-        "tags": {"hotel_id": hotel_id, "room": room, "sensor": sensor},
-        "fields": {"temperatureC": float(temp_c)},
-        "timestamp": int(ts)
-    }
+    "measurement": "temperature",
+    "tags": {
+        "hotel_id": str(hotel_id),
+        "room": int(room),
+        "sensor": str(sensor)
+    },
+    "fields": {"temperatureC": float(temp_c)},
+    "timestamp": int(ts)
+}
 
 def main():
     """
