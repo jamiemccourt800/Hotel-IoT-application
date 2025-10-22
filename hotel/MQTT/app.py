@@ -36,12 +36,14 @@ SENSOR_TOLERANCES = {
 
 # Kafka producer with retry logic
 def create_kafka_producer():
-    max_retries = 10
-    retry_delay = 5
-    
-    for attempt in range(max_retries):
+    # Robust connect: retry until Kafka is available.
+    # Use environment variable KAFKA_RETRY_DELAY (seconds) to control wait between attempts.
+    retry_delay = int(os.getenv("KAFKA_RETRY_DELAY", "5"))
+    attempt = 0
+    while True:
+        attempt += 1
         try:
-            print(f"Attempting to connect to Kafka (attempt {attempt + 1}/{max_retries})...")
+            print(f"Attempting to connect to Kafka (attempt {attempt})...")
             producer = KafkaProducer(
                 bootstrap_servers=KAFKA_BROKER,
                 value_serializer=lambda v: json.dumps(v).encode("utf-8"),
@@ -54,10 +56,9 @@ def create_kafka_producer():
             print(f"Kafka not available yet. Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
         except Exception as e:
-            print(f"Unexpected error connecting to Kafka: {e}")
+            # For any unexpected error, log and retry instead of exiting the container.
+            print(f"Unexpected error connecting to Kafka: {e}. Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
-    
-    raise Exception("Failed to connect to Kafka after maximum retries")
 
 producer = create_kafka_producer()
 
@@ -244,6 +245,12 @@ def on_message(client, userdata, msg):
                 producer.send(KAFKA_ACTIONS_TOPIC, status_msg)
                 print(f"Reported executed action to Kafka: {status_msg}")
             else:
+                # Ensure message has a timestamp for Telegraf
+                if isinstance(message, dict) and "timestamp" not in message:
+                    try:
+                        message["timestamp"] = timestamp
+                    except Exception:
+                        pass
                 kafka_msg = {"topic": topic, "message": message}
                 producer.send(KAFKA_TOPIC, kafka_msg)
                 print(f"Forwarded message to Kafka (fallback): {kafka_msg}")

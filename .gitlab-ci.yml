@@ -2,32 +2,21 @@ stages:
   - build
   - run
 
-before_script:
-  - docker system prune -af --volumes
-  - apk add --no-cache docker-compose  # install docker-compose inside job runner
-
 build:
   stage: build
   image: docker:latest
   script:
-    - docker info
-    - docker-compose -f central/docker-compose.central.yml build
-    - docker-compose -f hotel/docker-compose.hotel1.yml build
+    - docker network create iot-net || true
+    - sudo docker compose -f hotel/docker-compose.hotel1.yml build
+    - sudo docker compose -f central/docker-compose.central.yml build
+  after_script:
+  - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
 
 run:
   stage: run
   image: docker:latest
   script:
-    # Start containers in detached mode
-    - docker network create iot-net || true
-    - docker-compose -f central/docker-compose.central.yml up -d
-    - docker-compose -f hotel/docker-compose.hotel1.yml up -d
-    # Wait a few seconds for services to boot
-    - sleep 10
-    # Run a test command (adjust as needed, e.g. curl healthcheck)
-    - docker ps
-    - docker-compose ps
-  after_script:
-    # Cleanup after job
-    - docker-compose -f central/docker-compose.central.yml down
-    - docker-compose -f hotel/docker-compose.hotel1.yml down
+    - docker compose -f hotel/docker-compose.hotel1.yml up -d
+    - docker compose -f central/docker-compose.central.yml up -d
+    - sleep 60
+    - curl http://127.0.0.1/health
