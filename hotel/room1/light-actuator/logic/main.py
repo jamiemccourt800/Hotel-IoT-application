@@ -129,6 +129,85 @@ def build_state(hotel_id, room, sensor, on: bool, brightness: int):
         "timestamp": now_ms(),
     }
 
+
+def process_command_action(action: str, fields: dict, correlation_id=None) -> dict:
+    """Process a normalized action and fields dict.
+
+    action: one of 'on', 'off', 'toggle', 'set_brightness'
+    fields: dict containing the payload fields (e.g., {'value': 50})
+
+    Updates module state (`light_on`, `brightness`) and returns a result dict:
+      {'ack': True/False, 'error': ''}
+    """
+    global light_on, brightness
+
+    if action == 'on':
+        light_on = True
+        # if a brightness is provided in the fields, respect it
+        if 'brightness' in fields or 'value' in fields:
+            raw = fields.get('brightness', fields.get('value'))
+            try:
+                bri = int(raw)
+            except Exception:
+                raise TypeError('brightness must be an integer')
+            brightness = clamp_0_100(bri)
+        else:
+            if brightness == 0:
+                brightness = 100
+    elif action == 'off':
+        light_on = False
+        brightness = 0
+    elif action == 'toggle':
+        light_on = not light_on
+        if light_on and brightness == 0:
+            brightness = 100
+    elif action == 'set_brightness':
+        # value may be under 'value' or 'brightness' depending on envelope
+        raw = fields.get('value', fields.get('brightness'))
+        try:
+            val = int(raw)
+        except Exception:
+            raise TypeError('brightness must be an integer')
+        orig = val
+        val = clamp_0_100(val)
+        if val != orig:
+            # correction is non-fatal
+            pass
+        brightness = val
+        light_on = brightness > 0
+    else:
+        raise NotImplementedError(f'unsupported action: {action}')
+
+    return {'ack': True, 'error': ''}
+
+
+def handle(cmd: dict) -> dict:
+    """Thin wrapper for tests: accepts {'cmd': 'light.set', 'payload': {...}} and returns {'ack', 'state'}.
+
+    This maps the test input shape to the internal process_command_action function.
+    """
+    if not isinstance(cmd, dict):
+        raise TypeError('cmd must be a dict')
+    cmd_name = cmd.get('cmd')
+    payload = cmd.get('payload', {}) or {}
+
+    if cmd_name != 'light.set':
+        raise NotImplementedError(f'unsupported command: {cmd_name}')
+
+    # Determine action and fields from payload
+    if 'on' in payload:
+        action = 'on' if payload['on'] else 'off'
+        fields = payload
+    elif 'brightness' in payload:
+        action = 'set_brightness'
+        fields = {'brightness': payload['brightness']}
+    else:
+        raise KeyError('payload must contain on or brightness')
+
+    res = process_command_action(action, fields)
+    # return the shape expected by tests
+    return {'ack': res.get('ack', False), 'state': {'on': light_on, 'brightness': brightness}}
+
 # -------------- Main logic  --------------- #
 
 # Configuration from environment variables
@@ -233,44 +312,31 @@ def on_message(client, userdata, msg):
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
 
-    before_on, before_bri = light_on, brightness
+    # Delegate command processing to the shared function which updates module state
+    try:
+        result = process_command_action(action, fields, corr)
+    except KeyError as e:
+        # missing expected fields
+        log('WARNING', 'cmd-rejected', f'missing field: {e}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
+        ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="failed", error=str(e))
+        client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+        return
+    except Exception as e:
+        # generic failure
+        log('ERROR', 'cmd-error', f'error processing command: {e}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr, error=str(e))
+        ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="failed", error=str(e))
+        client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+        return
 
-    if action == "on":
-        light_on = True
-        if brightness == 0:
-            brightness = 100
-    elif action == "off":
-        light_on = False
-    elif action == "toggle":
-        light_on = not light_on
-        if light_on and brightness == 0:
-            brightness = 100
-    else:
-        try:
-            value = int(fields.get("value"))
-        except Exception:
-            value = None
-        if value is None:
-            log('WARNING', 'cmd-rejected', 'missing value for set_brightness', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
-            ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="failed", error="missing_value")
-            client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
-            return
-        orig = value
-        value = clamp_0_100(value)
-        if value != orig:
-            log('WARNING', 'brightness-corrected', f'clamped brightness from {orig} to {value}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, correlation_id=corr)
-        brightness = value
-        light_on = brightness > 0
-
-    log('INFO', 'cmd-received', f'command received', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
-
-    ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="ok", error="")
+    # Publish ack and state according to the processing result
+    ack_status = "ok" if result.get("ack") else "failed"
+    ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status=ack_status, error=result.get("error", ""))
     client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
     log('INFO', 'ack-published', 'ack published', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, correlation_id=corr, topic_out=TOPIC_ACK)
 
     state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
     client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
-    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, before_on=before_bri, before_brightness=before_bri, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
+    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
 
 def main():
     """
