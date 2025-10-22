@@ -5,7 +5,7 @@ import bulboff from "../../assets/bulb-off.png";
 const LightBulb = ({ lighton }) => {
   return (
     <div className="text-center w-1/2 mx-auto">
-      {lighton ? (
+      {!lighton ? (
         <img
           src={bulboff}
           alt="bulb off"

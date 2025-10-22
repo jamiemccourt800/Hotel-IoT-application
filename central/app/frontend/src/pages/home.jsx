@@ -7,7 +7,7 @@ const Home = () => {
   const [activePage, setActivePage] = useState(0);
 
   return (
-    <div className="w-96 mx-auto mt-20 font-sans">
+    <div className="w-full mx-auto mt-20 font-sans">
       {/* Tabs */}
       <div className="flex justify-center mb-4">
         <button

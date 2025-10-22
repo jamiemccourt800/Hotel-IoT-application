@@ -245,7 +245,9 @@ services:
     volumes:
       - ./app/frontend:/app
       - /app/node_modules
-
+    environment:
+      REACT_APP_HOTELID: hotel_01
+      REACT_APP_ROOMID: 101
 
 volumes:
   mongodb:
