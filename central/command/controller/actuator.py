@@ -1,13 +1,16 @@
 import json
+import sys
 import time
 import uuid
 import logging
 import os
+
+import requests
 from kafka_producer import send_message
 
 logger = logging.getLogger("actuator_routes")
 
-VICTORIA_BASE_URL = os.getenv("VICTORIA_BASE_URL", "http://localhost:8428")
+VICTORIA_BASE_URL = os.getenv("VICTORIA_URL", "http://victoria-metrics:8428").rstrip("/")
 LIGHT_METRIC = os.getenv("LIGHT_METRIC", "light_status") 
 LIGHT_WINDOW = os.getenv("LIGHT_WINDOW", "5m")
 
@@ -86,27 +89,45 @@ async def get_light_state(http, hotel_id: str, room: str) -> float | None:
     Uses PromQL: last_over_time(METRIC{hotel_id="...",room="..."}[LIGHT_WINDOW])
     Returns the numeric value or None if not found.
     """
-    promql = f'last_over_time({LIGHT_METRIC}{{hotel_id="{hotel_id}",room="{room}"}}[{LIGHT_WINDOW}])'
+    # Prefer configurable metric/window; allow override via LIGHT_METRIC and LIGHT_WINDOW
+    # promql = f'last_over_time({LIGHT_METRIC}{{hotel_id="{hotel_id}",room="{room}"}}[{LIGHT_WINDOW}])'
+    promql = "state_brightness{}"
     try:
-        r = await http.get(
+        resp = requests.get(
             f"{VICTORIA_BASE_URL}/api/v1/query",
             params={"query": promql},
+            timeout=10,
         )
-        r.raise_for_status()
-        data = r.json()
-        if data.get("status") != "success":
-            logger.warning(f"VM query not successful: {data}")
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        # Do not exit the process in a web server context; return None gracefully
+        logger.warning(f"VictoriaMetrics request failed: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error querying VictoriaMetrics: {e}")
+        return None
+
+    try:
+        payload = resp.json()
+        data = payload.get("data", {})
+        results = data.get("result", [])
+        if not results:
             return None
-        result = data.get("data", {}).get("result") or []
-        if not result:
-            return None
-        value = result[0].get("value")
-        if isinstance(value, list) and len(value) >= 2:
+        # Get the first sample value; Victoria returns [timestamp, "value"]
+        value = results[0].get("value")
+        if isinstance(value, (list, tuple)) and len(value) >= 2:
             try:
                 return float(value[1])
-            except Exception:
+            except (TypeError, ValueError):
+                return None
+        # Some responses might use "values" for range vectors
+        values = results[0].get("values")
+        if isinstance(values, list) and values:
+            try:
+                return float(values[-1][1])
+            except (TypeError, ValueError, IndexError):
                 return None
         return None
     except Exception as e:
-        logger.error(f"Error querying VictoriaMetrics: {e}")
+        logger.error(f"Failed to parse VictoriaMetrics response: {e}")
         return None

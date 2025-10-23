@@ -103,6 +103,7 @@ services:
       - kafka
     networks:
       - iot-net
+      - victoriametrics
     volumes:
       - ./command:/app
 

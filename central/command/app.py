@@ -105,7 +105,6 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
 
 @app.get("/actuator/light/{hotel_id}/{room_number}/state")
 async def light_state(hotel_id: str, room_number: int):
-
     async with httpx.AsyncClient() as http:
         try:
             state = await get_light_state(http, hotel_id, str(room_number))
