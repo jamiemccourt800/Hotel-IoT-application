@@ -30,20 +30,38 @@ def build_payload(hotel_id, room, sensor, temp_c, ts):
     try:
         ts_val = int(float(ts))
     except (TypeError, ValueError):
+        # fall back to current time in milliseconds
         ts_val = int(time.time() * 1000)
     ts = ts_val * 1000 if ts_val < 1_000_000_000_000 else ts_val
 
+    # Coerce and validate room id (must be integer)
+    try:
+        room_id = int(room)
+    except Exception:
+        raise TypeError("room must be an integer")
+
+    # Coerce and validate temperature
+    try:
+        temp_f = float(temp_c)
+    except Exception:
+        # Non-numeric temperature
+        raise TypeError("temperature must be a number")
+
+    # Acceptable physical range for our sensors
+    if not (-50.0 <= temp_f <= 120.0):
+        raise ValueError("temperature out of allowed range")
+
     # Returns a dict like:
     return {
-    "measurement": "temperature",
-    "tags": {
-        "hotel_id": str(hotel_id),
-        "room": int(room),
-        "sensor": str(sensor)
-    },
-    "fields": {"temperatureC": float(temp_c)},
-    "timestamp": int(ts)
-}
+        "measurement": "temperature",
+        "tags": {
+            "hotel_id": str(hotel_id),
+            "room": room_id,
+            "sensor": str(sensor)
+        },
+        "fields": {"temperatureC": temp_f},
+        "timestamp": int(ts)
+    }
 
 def main():
     """

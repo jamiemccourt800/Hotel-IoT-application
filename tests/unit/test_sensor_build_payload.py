@@ -73,3 +73,69 @@ def test_invalid_ts_falls_back_to_current_time_ms(monkeypatch):
     msg = SENSOR.build_payload("h", "1", "temperature-sensor", 19.0, "not-a-number")
     assert msg["timestamp"] == 1_700_000_000_000
     validate(instance=msg, schema=SCHEMA)
+
+@pytest.mark.parametrize("room", [101, "101"])
+def test_accepts_room_as_int_or_str(room):
+   
+    """
+    Room can be provided as int or str; tags should keep what we pass.
+    """
+
+    msg = SENSOR.build_payload("h1", room, "temperature-sensor", 21.0, 1_700_000_000_000)
+    # build_payload now coerces room to int
+    assert msg["tags"]["room"] == int(room)
+
+def test_uses_current_time_when_ts_is_none(monkeypatch):
+    
+    """
+    If ts is None, build_payload should use int(time.time()*1000).
+    """
+    
+    def fake_time():
+        return 1_700_000_123.456
+    monkeypatch.setattr(SENSOR.time, "time", fake_time)
+
+    msg = SENSOR.build_payload("h1", "101", "temperature-sensor", 19.75, ts=None)
+    assert msg["timestamp"] == 1_700_000_123_456
+    assert msg["fields"]["temperatureC"] == 19.75
+
+def test_ts_string_in_milliseconds_is_passthrough():
+    
+    """
+    If ts is a numeric string already in ms (>= 1e12), use as-is.
+    """
+
+
+    ts_ms_str = "1700000456000"
+    msg = SENSOR.build_payload("h1", "101", "temperature-sensor", 20.0, ts_ms_str)
+    assert msg["timestamp"] == int(ts_ms_str)
+
+def test_temperature_coerces_from_string():
+    
+    """
+    Temperature strings should be coerced to float.
+    """
+
+    msg = SENSOR.build_payload("h1", "101", "temperature-sensor", "22.25", 1_700_000_000_000)
+    assert isinstance(msg["fields"]["temperatureC"], float)
+    assert msg["fields"]["temperatureC"] == 22.25
+
+@pytest.mark.parametrize("temp", [-50.0, -40.0, 0.0, 37.0, 100.0, 120.0])
+def test_boundary_temperatures_ok(temp):
+    
+    """
+    Typical/edge values within allowed bounds should work.
+    """
+
+    msg = SENSOR.build_payload("h1", "101", "temperature-sensor", temp, 1_700_000_000_000)
+    assert msg["fields"]["temperatureC"] == float(temp)
+
+@pytest.mark.parametrize("bad", [-1000, 2000, "not-a-number", None, object()])
+def test_invalid_temperature_rejected(bad):
+    
+    """
+    Out-of-range or bad-type temps should either raise or fail clearly.
+    """
+
+    with pytest.raises((ValueError, TypeError)):
+        SENSOR.build_payload("h1", "101", "temperature-sensor", bad, 1)
