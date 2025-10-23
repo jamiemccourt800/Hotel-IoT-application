@@ -270,11 +270,11 @@ services:
           - mongodb
   
   app-frontend:
-    build: ./app/frontend
+    build: ./frontend
     ports:
       - 3001:3000
     volumes:
-      - ./app/frontend:/app
+      - ./frontend:/app
       - /app/node_modules
     environment:
       REACT_APP_HOTELID: hotel_01
