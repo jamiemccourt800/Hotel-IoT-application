@@ -11,7 +11,17 @@ endif
 
 # Unit tests
 unit:
-	$(PYTHON) -m pytest -q tests/unit --cov=. --junitxml=reports/unit.xml
+	.venv\Scripts\python.exe -m pytest -q tests/unit \
+		--cov=. \
+		--cov-report=term-missing \
+		--cov-report=xml:reports/coverage.xml \
+		--cov-report=html:reports/htmlcov \
+		--junitxml=reports/unit.xml
+
+coverage-html: unit
+	@echo Opening coverage report (using Python webbrowser)...
+	@$(PYTHON) -c "import webbrowser,os; webbrowser.open(os.path.abspath('reports/htmlcov/index.html'))" || \
+		echo "Could not open browser automatically. See reports/htmlcov/index.html"
 
 .PHONY: init
 init:
