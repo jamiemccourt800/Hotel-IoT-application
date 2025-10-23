@@ -62,22 +62,26 @@ These will switch lights or change thermostat locally, while the action event is
 
 ## Developer: run tests (PowerShell)
 
-Preferred: use the Makefile which creates/uses the project venv:
+The Makefile now provides convenient targets for creating the virtualenv and running unit and integration tests. Preferred: use the Makefile (PowerShell):
+
+```powershell
+# one-time: create venv and install test/dev deps
+make init
+
+# run unit tests (fast, no external services)
+make unit
+
+# run unit tests (opens coverage.html after tests pass)
+make coverage-html
+```
+
+Fallback (avoid Makefile, PowerShell):
 
 ```powershell
 # create venv and install test deps (one-time)
-make init
-
-# run unit tests
-make unit
-```
-
-Fallback (avoid Makefile):
-
-```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements-test.txt
+
+# run unit tests
 .venv\Scripts\python.exe -m pytest -q tests/unit --cov=. --junitxml=reports/unit.xml
 ```
-
-
