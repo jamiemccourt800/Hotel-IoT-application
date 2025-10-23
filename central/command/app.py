@@ -4,10 +4,11 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import logging
+
 from kafka_producer import start_producer, stop_producer, send_message
 from config import config
 from controller.health import health_check
-from controller.actuator import set_light_action, get_light_state
+from controller.actuator import set_light_action, get_light_state, get_light_brightness
 import json, uuid, time
 import httpx
 
@@ -102,6 +103,16 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
         logger.error(f"Error in light_brightness: {e}", exc_info=True)
         return {"status": "fail", "error": str(e)}
 
+
+@app.get("/actuator/light/{hotel_id}/{room_number}/brightness")
+async def light_brightness(hotel_id: str, room_number: int):
+    async with httpx.AsyncClient() as http:
+        try:
+            state = await get_light_brightness(http, hotel_id, str(room_number))
+            return {"status": "success", "state": state}
+        except Exception as e:
+            logger.error(f"Error in light_state: {e}", exc_info=True)
+            return {"status": "fail", "error": str(e)}
 
 @app.get("/actuator/light/{hotel_id}/{room_number}/state")
 async def light_state(hotel_id: str, room_number: int):
