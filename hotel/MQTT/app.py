@@ -169,12 +169,21 @@ def extract_sensor_value(message):
                 field = field.strip()
                 if field in fields:
                     return fields[field]
-        
+
     # Fallback: if message is a simple value
     elif isinstance(message, (int, float)):
         print(f"Message is a direct numeric value: {message}")
         return message
-    
+
+    return None
+
+def extract_light_actuator_ack(message):
+    """ Extract value from light actuator ack messages. """
+    if isinstance(message, dict):
+        if "fields" in message:
+            fields = message["fields"]
+            if "light_status" in fields:
+                return fields["light_status"]
     return None
 
 def update_last_value(topic, value, timestamp):
@@ -196,6 +205,10 @@ def on_message(client, userdata, msg):
             print(f"Processing sensor message on topic {topic}")
             sensor_value = extract_sensor_value(message)
             print(f"Extracted sensor value: {sensor_value}")
+            light_actuator_value = extract_light_actuator_ack(message)
+            if sensor_value is None and light_actuator_value is not None:
+                sensor_value = light_actuator_value
+                print(f"Extracted light actuator ack value: {sensor_value}")
 
             # Check tolerances
             if sensor_value is not None and not check_tolerance(topic, sensor_value, timestamp):
@@ -223,6 +236,24 @@ def on_message(client, userdata, msg):
                 "body": action_payload,
                 "timestamp": int(time.time() * 1000),
             }
+
+            # If this is a light actuator ack, publish an equivalent sensors/... message back to MQTT
+            # so the normal sensors/# path will pick it up and forward it to Kafka.
+            try:
+                light_ack = extract_light_actuator_ack(action_payload)
+                if light_ack is not None:
+                    sensor_topic = topic.replace("actuators/", "sensors/", 1)
+                    sensor_payload = {
+                        "fields": {
+                            "value": light_ack,
+                            "status": "ack"
+                        },
+                        "timestamp": int(time.time() * 1000)
+                    }
+                    print(f"Publishing light actuator ack to MQTT {sensor_topic}: {sensor_payload}")
+                    mqtt_client.publish(sensor_topic, json.dumps(sensor_payload))
+            except Exception as e:
+                print(f"Failed to publish light ack to MQTT: {e}")
             producer.send(KAFKA_ACTIONS_TOPIC, status_msg)
             print(f"Reported executed action to Kafka: {status_msg}")
         else:

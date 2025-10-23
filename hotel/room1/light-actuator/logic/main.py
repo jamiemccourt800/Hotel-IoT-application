@@ -299,14 +299,14 @@ def main():
             log('WARNING', 'mqtt-connect-retry', f'connect failed: {e}; retrying in {delay}s', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, error=str(e))
             time.sleep(delay)
 
-    # Heartbeat: publish state every 30 seconds
+    # Heartbeat: publish state every minute
     import threading
     def heartbeat_loop():
         while True:
             state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
             client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
             log('INFO', 'heartbeat', 'periodic state heartbeat', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
-            time.sleep(30)
+            time.sleep(60)
     threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     client.loop_forever()
