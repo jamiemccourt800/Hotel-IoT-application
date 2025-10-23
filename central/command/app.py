@@ -6,9 +6,10 @@ from pydantic import BaseModel
 import logging
 from kafka_producer import start_producer, stop_producer, send_message
 from config import config
-from routes.health import health_check
-from routes.actuator import set_light_action
+from controller.health import health_check
+from controller.actuator import set_light_action, get_light_state
 import json, uuid, time
+import httpx
 
 logger = logging.getLogger("app")
 logger.setLevel(logging.INFO)
@@ -58,7 +59,7 @@ async def send_command(
     Returns:
         dict: A dictionary indicating success or failure.
     """
-    from routes.actuator import set_temperature
+    from controller.actuator import set_temperature
     try:
         return await set_temperature(hotel_id, room_number, value)
     except Exception as e:
@@ -101,3 +102,14 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
         logger.error(f"Error in light_brightness: {e}", exc_info=True)
         return {"status": "fail", "error": str(e)}
 
+
+@app.get("/actuator/light/{hotel_id}/{room_number}/state")
+async def light_state(hotel_id: str, room_number: int):
+
+    async with httpx.AsyncClient() as http:
+        try:
+            state = await get_light_state(http, hotel_id, str(room_number))
+            return {"status": "success", "state": state}
+        except Exception as e:
+            logger.error(f"Error in light_state: {e}", exc_info=True)
+            return {"status": "fail", "error": str(e)}
