@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Box from "@mui/joy/Box";
 import Slider from "@mui/joy/Slider";
 
@@ -17,16 +17,18 @@ const getColor = (temp) => {
   const minTemp = 15;
   const maxTemp = 30;
   const ratio = (temp - minTemp) / (maxTemp - minTemp);
-
   const r = Math.round(ratio * 255);
   const g = Math.round(ratio * 100);
   const b = Math.round(255 - ratio * 255);
-
   return `rgb(${r},${g},${b})`;
 };
 
-const TemperatureSlider = ({ initialValue = 22, onSliderChange, disabled }) => {
+const TemperatureSlider = ({ initialValue, onSliderChange, disabled }) => {
   const [temp, setTemp] = useState(initialValue);
+
+  useEffect(() => {
+    setTemp(initialValue);
+  }, [initialValue]);
 
   const handleChange = (event, value) => {
     setTemp(value);
@@ -52,18 +54,15 @@ const TemperatureSlider = ({ initialValue = 22, onSliderChange, disabled }) => {
         max={30}
         disabled={disabled}
         slotProps={{
-          thumb: {
-            sx: { bgcolor: getColor(temp) },
-          },
-          track: {
-            sx: { bgcolor: getColor(temp) },
-          },
+          thumb: { sx: { bgcolor: getColor(temp) } },
+          track: { sx: { bgcolor: getColor(temp) } },
         }}
         sx={{
           "--Slider-thumb-size": "24px",
           "--Slider-track-size": "8px",
           "--Slider-track-radius": "6px",
           "--Slider-thumb-shadow": "0 0 0 8px rgba(0,0,0,0.05)",
+          transition: "all 0.2s ease",
         }}
       />
     </Box>

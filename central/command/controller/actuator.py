@@ -1,18 +1,17 @@
 import json
-import sys
 import time
 import uuid
 import logging
 import os
-
-import requests
 from kafka_producer import send_message
+import httpx
 
 logger = logging.getLogger("actuator_routes")
 
-VICTORIA_BASE_URL = os.getenv("VICTORIA_URL", "http://victoria-metrics:8428").rstrip("/")
-LIGHT_METRIC_BRIGHTNESS = os.getenv("LIGHT_METRIC_BRIGHTNESS", "state_brightness") 
-LIGHT_METRIC_STATE = os.getenv("LIGHT_METRIC_STATE", "state_on") 
+VICTORIA_BASE_URL = os.getenv("VICTORIA_BASE_URL", "http://victoria-metrics:8428")
+
+LIGHT_METRIC = os.getenv("LIGHT_METRIC", "light_status") 
+TEMPERATURE_METRIC = os.getenv("TEMPERATURE_METRIC", "room_temperature")
 LIGHT_WINDOW = os.getenv("LIGHT_WINDOW", "5m")
 
 async def set_temperature(hotel_id: str, room_number: int, temperature: float):
@@ -83,99 +82,25 @@ async def set_light_action(hotel_id: str, room_number: int, action: str, value: 
         logger.error(f"Failed to enqueue light action for hotel {hotel_id}, room {room_number}: {e}")
         return {"status": "error", "error": str(e)}
 
-
-async def get_light_state(http, hotel_id: str, room: str) -> float | None:
-    """Gets the current light level in the room
-
-    Uses PromQL: last_over_time(METRIC{hotel_id="...",room="..."}[LIGHT_WINDOW])
-    Returns the numeric value or None if not found.
-    """
-    # Prefer configurable metric/window; allow override via LIGHT_METRIC and LIGHT_WINDOW
-    promql = f'last_over_time({LIGHT_METRIC_STATE}{{hotel_id="{hotel_id}",room="{room}"}}[{LIGHT_WINDOW}])'
+async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str) -> float | None:
+    """Generic function to query VictoriaMetrics for a single value metric."""
+    
+    promql = f'last_over_time({metric}{{hotel_id="{hotel_id}",room="{room}"}}[1m])'
     try:
-        resp = requests.get(
-            f"{VICTORIA_BASE_URL}/api/v1/query",
-            params={"query": promql},
-            timeout=10,
-        )
+        resp = await http.get(f"{VICTORIA_BASE_URL}/api/v1/query", params={"query": promql}, timeout=10)                
         resp.raise_for_status()
-    except requests.RequestException as e:
-        # Do not exit the process in a web server context; return None gracefully
-        logger.warning(f"VictoriaMetrics request failed: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error querying VictoriaMetrics: {e}")
-        return None
-
-    try:
         payload = resp.json()
-        data = payload.get("data", {})
-        results = data.get("result", [])
+
+        results = payload.get("data", {}).get("result", [])
         if not results:
             return None
-        # Get the first sample value; Victoria returns [timestamp, "value"]
+
         value = results[0].get("value")
         if isinstance(value, (list, tuple)) and len(value) >= 2:
-            try:
-                return float(value[1])
-            except (TypeError, ValueError):
-                return None
-        # Some responses might use "values" for range vectors
-        values = results[0].get("values")
-        if isinstance(values, list) and values:
-            try:
-                return float(values[-1][1])
-            except (TypeError, ValueError, IndexError):
-                return None
-        return None
-    except Exception as e:
-        logger.error(f"Failed to parse VictoriaMetrics response: {e}")
+            return float(value[1])
+
+    except (httpx.RequestError, ValueError, TypeError, IndexError) as e:
+        logger.warning(f"Error fetching metric {metric}: {e}")
         return None
 
-async def get_light_brightness(http, hotel_id: str, room: str) -> float | None:
-    """Gets the current light level in the room
-
-    Uses PromQL: last_over_time(METRIC{hotel_id="...",room="..."}[LIGHT_WINDOW])
-    Returns the numeric value or None if not found.
-    """
-    # Prefer configurable metric/window; allow override via LIGHT_METRIC and LIGHT_WINDOW
-    promql = f'last_over_time({LIGHT_METRIC_BRIGHTNESS}{{hotel_id="{hotel_id}",room="{room}"}}[{LIGHT_WINDOW}])'
-    try:
-        resp = requests.get(
-            f"{VICTORIA_BASE_URL}/api/v1/query",
-            params={"query": promql},
-            timeout=10,
-        )
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        # Do not exit the process in a web server context; return None gracefully
-        logger.warning(f"VictoriaMetrics request failed: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error querying VictoriaMetrics: {e}")
-        return None
-
-    try:
-        payload = resp.json()
-        data = payload.get("data", {})
-        results = data.get("result", [])
-        if not results:
-            return None
-        # Get the first sample value; Victoria returns [timestamp, "value"]
-        value = results[0].get("value")
-        if isinstance(value, (list, tuple)) and len(value) >= 2:
-            try:
-                return float(value[1])
-            except (TypeError, ValueError):
-                return None
-        # Some responses might use "values" for range vectors
-        values = results[0].get("values")
-        if isinstance(values, list) and values:
-            try:
-                return float(values[-1][1])
-            except (TypeError, ValueError, IndexError):
-                return None
-        return None
-    except Exception as e:
-        logger.error(f"Failed to parse VictoriaMetrics response: {e}")
-        return None
+    return None
