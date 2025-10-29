@@ -8,7 +8,7 @@ import logging
 from kafka_producer import start_producer, stop_producer, send_message
 from config import config
 from controller.health import health_check
-from controller.actuator import set_light_action, get_light_state, get_light_brightness
+from controller.actuator import set_light_action, get_metric
 import json, uuid, time
 import httpx
 
@@ -108,7 +108,8 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
 async def light_brightness(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
-            state = await get_light_brightness(http, hotel_id, str(room_number))
+            metric = "state_brightness"
+            state = await get_metric(http, metric, hotel_id, str(room_number))
             return {"status": "success", "state": state}
         except Exception as e:
             logger.error(f"Error in light_state: {e}", exc_info=True)
@@ -118,8 +119,20 @@ async def light_brightness(hotel_id: str, room_number: int):
 async def light_state(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
-            state = await get_light_state(http, hotel_id, str(room_number))
+            metric = "state_on"
+            state = await get_metric(http,metric, hotel_id, str(room_number))
             return {"status": "success", "state": state}
         except Exception as e:
             logger.error(f"Error in light_state: {e}", exc_info=True)
+            return {"status": "fail", "error": str(e)}
+
+@app.get("/actuator/temperature/{hotel_id}/{room_number}/current")
+async def current_temperature(hotel_id: str, room_number: int):
+    async with httpx.AsyncClient() as http:
+        try:
+            metric = "temperature_temperatureC"
+            temp = await get_metric(http, metric, hotel_id, str(room_number))
+            return {"status": "success", "temperature": temp}
+        except Exception as e:
+            logger.error(f"Error in current_temperature: {e}", exc_info=True)
             return {"status": "fail", "error": str(e)}

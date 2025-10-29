@@ -7,12 +7,6 @@ import axiosInstance from './utils/axiosInstance';
 
 function App() {
 
-useEffect(() => {
-  axiosInstance.get(`/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/state`)
-  .then((res) => console.log(res.data))
-  .catch((err) => console.log(err))
-}, [])
-
   return (
     <div className="App">
       <Home/>

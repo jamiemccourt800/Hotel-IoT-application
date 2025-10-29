@@ -1,7 +1,7 @@
 import { Slider, Box, Typography } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const VerticalLightSlider = ({ initialValue = 50, onsliderChange }) => {
+const VerticalLightSlider = ({ initialValue, onsliderChange }) => {
   const [brightness, setBrightness] = useState(initialValue);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -11,8 +11,16 @@ const VerticalLightSlider = ({ initialValue = 50, onsliderChange }) => {
 
   const handleChangeCommitted = async (event, value) => {
     setIsUpdating(true);
-   onsliderChange && onsliderChange(value);
+     try {
+    if (onsliderChange) await onsliderChange(value);
+  } finally {
+    setIsUpdating(false);
+  }
   };
+
+useEffect(() => {
+  setBrightness(initialValue);
+}, [initialValue]);
 
   return (
     <Box

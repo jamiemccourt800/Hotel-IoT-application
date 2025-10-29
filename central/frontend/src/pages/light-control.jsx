@@ -7,18 +7,57 @@ import {toast} from 'react-toastify'
 import BrightnessSlider from '../components/brightness-slide/brightness-slider'
 
 const LightControl = ({on = false}) => {
-
+  
 
     const [lightOn, setLightOn] = useState(on)
+    const [brightness, setBrightness] = useState(50)
     const [updating, setIsUpdating] = useState(false)
 
-    const changeLightStatus = () => {
-      const newStatus = !lightOn
-      setLightOn(newStatus)
-      const lightStatus = newStatus?'on':'off'
-      axiosInstance.post(`/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/${lightStatus}`)
-      .catch((error) => toast.error("Oops! There was an issue changing the light. Please try again later!"))
+    const getLightStatus = async () => {
+      try{
+      const hotel = process.env.REACT_APP_HOTELID || "hotel_01";
+      const room = process.env.REACT_APP_ROOMID || 101;
+
+      const res = await axiosInstance.get(`/actuator/light/${hotel}/${room}/state`);
+      setLightOn(Number(res.data.state) === 1);
+      }
+
+    catch (err) {
+      toast.error("Error fetching temperature details for current room");
     }
+    }
+
+    const getBrightness = async () => {
+      try{
+      const hotel = process.env.REACT_APP_HOTELID || "hotel_01";
+      const room = process.env.REACT_APP_ROOMID || 101;
+      const res = await axiosInstance.get(`/actuator/light/${hotel}/${room}/brightness`);
+      setBrightness(Number(res.data.state));
+      }
+    catch (err) {
+      toast.error("Error fetching brightness details for current room");
+    }
+    }
+      
+
+    useEffect(() => {
+      getLightStatus()
+      getBrightness()
+    }, []);
+
+const changeLightStatus = async () => {
+  
+  const newStatus = !lightOn
+  setLightOn(newStatus)
+  const lightStatus = newStatus ? 'on' : 'off'
+  try {
+    await axiosInstance.post(`/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/${lightStatus}`)
+  } catch(error) {
+    console.error(error)
+    toast.error("Error changing light")
+    setLightOn(!newStatus)
+  }
+}
 
 
 
@@ -51,7 +90,7 @@ const LightControl = ({on = false}) => {
   </div>
   <div>
    <BrightnessSlider
-    initialValue={50}
+    initialValue={brightness}
     onsliderChange={changeBrightness}
    />
    </div>
