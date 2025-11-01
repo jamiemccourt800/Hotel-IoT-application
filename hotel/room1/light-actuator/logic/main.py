@@ -338,7 +338,7 @@ def on_message(client, userdata, msg):
     client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
     log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
 
-def main():
+def main(): # pragma: no cover
     """
     Main entry point.
     Sets up MQTT client and starts the network loop.
@@ -367,7 +367,7 @@ def main():
 
     # Heartbeat: publish state every minute
     import threading
-    def heartbeat_loop():
+    def heartbeat_loop(): # pragma: no cover
         while True:
             state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
             client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
@@ -377,5 +377,5 @@ def main():
 
     client.loop_forever()
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()

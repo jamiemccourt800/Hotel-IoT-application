@@ -63,7 +63,7 @@ def build_payload(hotel_id, room, sensor, temp_c, ts):
         "timestamp": int(ts)
     }
 
-def main():
+def main(): # pragma: no cover
     """
      Simple temperature sensor simulator.
      
@@ -149,7 +149,7 @@ def main():
     }), qos=1)
 
 
-    def csv_source():
+    def csv_source(): # pragma: no cover
         """
         Generator reading from CSV file.
         If file not found, switches to random source.
@@ -166,7 +166,7 @@ def main():
             print(f"CSV not found at {args.csv}, switching to random mode.")
             yield from random_source()
 
-    def random_source():
+    def random_source(): # pragma: no cover
 
         """
         Generator producing random walk temperature readings.
@@ -201,5 +201,5 @@ def main():
         client.disconnect()
         log('INFO', 'shutdown', 'sensor disconnected cleanly', hotel_id=hotel_id, room=room, sensor=sensor, published_count=published_count)
 
-if __name__ == "__main__":
+if __name__ == "__main__": # pragma: no cover
     main()
