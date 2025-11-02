@@ -28,3 +28,7 @@ init:
 	python -m venv .venv
 	.venv\Scripts\python.exe -m pip install --upgrade pip
 	.venv\Scripts\python.exe -m pip install -r requirements-test.txt
+
+# Contract tests
+contract:
+	.venv\Scripts\python.exe -m pytest -q tests/contract --cov=. --junitxml=reports/contract.xml
