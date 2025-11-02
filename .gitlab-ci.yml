@@ -6,7 +6,9 @@ workflow:
 
 stages:
   - build
-  - run
+  - test
+  - push
+  - deploy
 
 build:
   stage: build
@@ -18,11 +20,79 @@ build:
   after_script:
   - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
 
-run:
-  stage: run
+test:
+  stage: test
   image: docker:latest
   script:
     - docker compose -f hotel/docker-compose.hotel1.yml up -d
     - docker compose -f central/docker-compose.central.yml up -d
     - sleep 60
     - curl http://127.0.0.1:5000/health
+
+push:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+        # Tag and push hotel images
+    - docker tag hotel_temperature-sensor:latest $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
+    - docker tag hotel_light-actuator:latest $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
+    - docker tag hotel_alert-agent:latest $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
+    - docker tag hotel_mqtt-to-kafka:latest $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
+    - docker tag hotel_kafka-to-mqtt:latest $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
+    - docker push $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
+    - docker push $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
+    - docker push $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
+    - docker push $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
+    - docker push $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
+
+        # Tag and push central images
+    - docker tag central_command:latest $CI_REGISTRY_IMAGE/central/command:latest
+    - docker tag central_automation:latest $CI_REGISTRY_IMAGE/central/automation:latest
+    - docker tag central_app-frontend:latest $CI_REGISTRY_IMAGE/central/app-frontend:latest
+    - docker push $CI_REGISTRY_IMAGE/central/command:latest
+    - docker push $CI_REGISTRY_IMAGE/central/automation:latest
+    - docker push $CI_REGISTRY_IMAGE/central/app-frontend:latest
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: docker:latest
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "Logging in to GitLab Container Registry..."
+    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+    # Pull latest images from the registry
+    - docker pull $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
+    - docker pull $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
+    - docker pull $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
+    - docker pull $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
+    - docker pull $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
+    - docker pull $CI_REGISTRY_IMAGE/central/command:latest
+    - docker pull $CI_REGISTRY_IMAGE/central/automation:latest
+    - docker pull $CI_REGISTRY_IMAGE/central/app-frontend:latest
+
+    # (Optional) Stop old containers
+    - docker compose -f central/docker-compose.central.yml down || true
+    - docker compose -f hotel/docker-compose.hotel1.yml down || true
+
+    # Run with pulled images instead of building
+    - echo "Starting updated containers..."
+    - docker compose -f central/docker-compose.central.yml up -d --no-build
+    - docker compose -f hotel/docker-compose.hotel1.yml up -d --no-build
+  only:
+    - main
+  when: on_success
+
