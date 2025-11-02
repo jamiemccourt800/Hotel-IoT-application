@@ -30,10 +30,6 @@ test:
     - sleep 60
     - curl http://127.0.0.1:5000/health
 
-variables:
-  CI_REGISTRY: registry.gitlab.comp.dkit.ie
-  CI_REGISTRY_IMAGE: registry.gitlab.comp.dkit.ie/d00265301/devops-group-project
-
 push:
   stage: push
   image: docker:latest
@@ -43,8 +39,7 @@ push:
     DOCKER_HOST: tcp://docker:2375
     DOCKER_TLS_CERTDIR: ""
   script:
-    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
         # Tag and push hotel images
     - docker tag hotel_temperature-sensor:latest $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
     - docker tag hotel_light-actuator:latest $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
