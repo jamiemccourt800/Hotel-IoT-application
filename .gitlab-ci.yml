@@ -30,6 +30,10 @@ test:
     - sleep 60
     - curl http://127.0.0.1:5000/health
 
+variables:
+  CI_REGISTRY: registry.gitlab.comp.dkit.ie
+  CI_REGISTRY_IMAGE: registry.gitlab.comp.dkit.ie/d00265301/devops-group-project
+
 push:
   stage: push
   image: docker:latest
