@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  e2e-test-placeholder:
+    image: busybox
+    command: sleep 3600
+    networks:
+      - iot-net
+
+networks:
+  iot-net:
+    external: true

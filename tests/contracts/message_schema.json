@@ -4,18 +4,30 @@
   "type": "object",
   "required": ["measurement", "timestamp", "fields", "tags"],
   "properties": {
-    "measurement": {"type": "string"},
-    "timestamp": {"type": "number"},
-    "fields": {"type": "object"},
+    "measurement": {
+      "type": "string",
+      "enum": [
+        "temperature",
+        "light_state",
+        "light_ack",
+        "alert",
+        "ack"
+      ]
+    },
+    "timestamp": { "type": "number" },
+    "fields": { "type": "object" },
     "tags": {
       "type": "object",
       "required": ["hotel_id", "room", "sensor"],
       "properties": {
-        "hotel_id": {"type": "string"},
-        "room": {"type": ["string", "integer"]},
-        "sensor": {"type": "string"}
-      }
-    }
+        "hotel_id": { "type": "string" },
+        "room": { "type": ["string", "integer"] },
+        "sensor": { "type": "string" },
+        "alert_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "correlationId": { "type": ["string", "null"] }
   },
   "additionalProperties": false
 }

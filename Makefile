@@ -18,7 +18,7 @@ unit:
 		--cov-report=html:reports/htmlcov \
 		--junitxml=reports/unit.xml
 
-coverage-html: unit
+coverage-html: unit contract integration
 	@echo Opening coverage report (using Python webbrowser)...
 	@$(PYTHON) -c "import webbrowser,os; webbrowser.open(os.path.abspath('reports/htmlcov/index.html'))" || \
 		echo "Could not open browser automatically. See reports/htmlcov/index.html"
@@ -32,3 +32,6 @@ init:
 # Contract tests
 contract:
 	.venv\Scripts\python.exe -m pytest -q tests/contract --cov=. --junitxml=reports/contract.xml
+
+integration:
+	.venv\Scripts\python.exe -m pytest -s tests/integration --cov=. --junitxml=reports/integration.xml
