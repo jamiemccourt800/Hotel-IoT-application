@@ -8,6 +8,9 @@ stages:
   - build
   - run
 
+before_script:
+  - git config --global --add safe.directory "$CI_PROJECT_DIR"
+
 build:
   stage: build
   image: docker:latest
