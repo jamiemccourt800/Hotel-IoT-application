@@ -36,11 +36,11 @@ push:
   script:
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
         # Tag and push hotel images
-    - docker tag hotel_temperature-sensor:latest $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
-    - docker tag hotel_light-actuator:latest $DOCKERHUB_USERNAME/hotel/light-actuator:latest
-    - docker tag hotel_alert-agent:latest $DOCKERHUB_USERNAME/hotel/alert-agent:latest
-    - docker tag hotel_mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel/mqtt-to-kafka:latest
-    - docker tag hotel_kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
+    - docker tag hotel1-temperature-sensor:latest $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
+    - docker tag hotel1-light-actuator:latest $DOCKERHUB_USERNAME/hotel/light-actuator:latest
+    - docker tag hotel1-alert-agent:latest $DOCKERHUB_USERNAME/hotel/alert-agent:latest
+    - docker tag hotel1-mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel/mqtt-to-kafka:latest
+    - docker tag hotel1-kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
     - docker push $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
     - docker push $DOCKERHUB_USERNAME/hotel/light-actuator:latest
     - docker push $DOCKERHUB_USERNAME/hotel/alert-agent:latest
@@ -48,9 +48,9 @@ push:
     - docker push $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
 
         # Tag and push central images
-    - docker tag central_command:latest $DOCKERHUB_USERNAME/central/command:latest
-    - docker tag central_automation:latest $DOCKERHUB_USERNAME/central/automation:latest
-    - docker tag central_app-frontend:latest $DOCKERHUB_USERNAME/central/app-frontend:latest
+    - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central/command:latest
+    - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central/automation:latest
+    - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central/app-frontend:latest
     - docker push $DOCKERHUB_USERNAME/central/command:latest
     - docker push $DOCKERHUB_USERNAME/central/automation:latest
     - docker push $DOCKERHUB_USERNAME/central/app-frontend:latest
