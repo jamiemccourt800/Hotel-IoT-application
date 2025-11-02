@@ -41,24 +41,24 @@ push:
   script:
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
         # Tag and push hotel images
-    - docker tag hotel_temperature-sensor:latest $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
-    - docker tag hotel_light-actuator:latest $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
-    - docker tag hotel_alert-agent:latest $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
-    - docker tag hotel_mqtt-to-kafka:latest $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
-    - docker tag hotel_kafka-to-mqtt:latest $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
-    - docker push $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
-    - docker push $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
-    - docker push $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
-    - docker push $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
-    - docker push $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
+    - docker tag hotel_temperature-sensor:latest $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
+    - docker tag hotel_light-actuator:latest $DOCKERHUB_USERNAME/hotel/light-actuator:latest
+    - docker tag hotel_alert-agent:latest $DOCKERHUB_USERNAME/hotel/alert-agent:latest
+    - docker tag hotel_mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel/mqtt-to-kafka:latest
+    - docker tag hotel_kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
+    - docker push $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
+    - docker push $DOCKERHUB_USERNAME/hotel/light-actuator:latest
+    - docker push $DOCKERHUB_USERNAME/hotel/alert-agent:latest
+    - docker push $DOCKERHUB_USERNAME/hotel/mqtt-to-kafka:latest
+    - docker push $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
 
         # Tag and push central images
-    - docker tag central_command:latest $CI_REGISTRY_IMAGE/central/command:latest
-    - docker tag central_automation:latest $CI_REGISTRY_IMAGE/central/automation:latest
-    - docker tag central_app-frontend:latest $CI_REGISTRY_IMAGE/central/app-frontend:latest
-    - docker push $CI_REGISTRY_IMAGE/central/command:latest
-    - docker push $CI_REGISTRY_IMAGE/central/automation:latest
-    - docker push $CI_REGISTRY_IMAGE/central/app-frontend:latest
+    - docker tag central_command:latest $DOCKERHUB_USERNAME/central/command:latest
+    - docker tag central_automation:latest $DOCKERHUB_USERNAME/central/automation:latest
+    - docker tag central_app-frontend:latest $DOCKERHUB_USERNAME/central/app-frontend:latest
+    - docker push $DOCKERHUB_USERNAME/central/command:latest
+    - docker push $DOCKERHUB_USERNAME/central/automation:latest
+    - docker push $DOCKERHUB_USERNAME/central/app-frontend:latest
   only:
     - main
 
@@ -72,17 +72,17 @@ deploy:
     DOCKER_TLS_CERTDIR: ""
   script:
     - echo "Logging in to GitLab Container Registry..."
-    - echo "$CI_JOB_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
     # Pull latest images from the registry
-    - docker pull $CI_REGISTRY_IMAGE/hotel/temperature-sensor:latest
-    - docker pull $CI_REGISTRY_IMAGE/hotel/light-actuator:latest
-    - docker pull $CI_REGISTRY_IMAGE/hotel/alert-agent:latest
-    - docker pull $CI_REGISTRY_IMAGE/hotel/mqtt-to-kafka:latest
-    - docker pull $CI_REGISTRY_IMAGE/hotel/kafka-to-mqtt:latest
-    - docker pull $CI_REGISTRY_IMAGE/central/command:latest
-    - docker pull $CI_REGISTRY_IMAGE/central/automation:latest
-    - docker pull $CI_REGISTRY_IMAGE/central/app-frontend:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel/temperature-sensor:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel/light-actuator:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel/alert-agent:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel/mqtt-to-kafka:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel/kafka-to-mqtt:latest
+    - docker pull $DOCKERHUB_USERNAME/central/command:latest
+    - docker pull $DOCKERHUB_USERNAME/central/automation:latest
+    - docker pull $DOCKERHUB_USERNAME/central/app-frontend:latest
 
     # (Optional) Stop old containers
     - docker compose -f central/docker-compose.central.yml down || true
