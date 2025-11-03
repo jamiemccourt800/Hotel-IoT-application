@@ -75,9 +75,7 @@ def main(): # pragma: no cover
     
     # Parse command line args
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["random", "csv"], default=os.getenv("MODE", "random"))
     parser.add_argument("--interval", type=float, default=float(os.getenv("INTERVAL", "1.0")))
-    parser.add_argument("--csv", default=os.getenv("CSV_PATH", ".data/telemetry.csv"))
     parser.add_argument("--speed", type=float, default=float(os.getenv("SPEED", "1.0")))
     args = parser.parse_args()
 
@@ -93,7 +91,7 @@ def main(): # pragma: no cover
     )
     port = int(os.getenv("MQTT_PORT") or os.getenv("BROKER_PORT") or "1883")
     qos = int(os.getenv("MQTT_QOS") or os.getenv("QOS") or "1")
-    log('INFO', 'startup', 'started', hotel_id=hotel_id, room=room, sensor=sensor, mode=args.mode, interval_s=args.interval, qos=qos, broker=f'{broker}:{port}')
+    log('INFO', 'startup', 'started', hotel_id=hotel_id, room=room, sensor=sensor, interval_s=args.interval, qos=qos, broker=f'{broker}:{port}')
 
     # MQTT config
     broker = (
@@ -149,41 +147,43 @@ def main(): # pragma: no cover
     }), qos=1)
 
 
-    def csv_source(): # pragma: no cover
-        """
-        Generator reading from CSV file.
-        If file not found, switches to random source.
-        """
+
+
+    # Shared state for target temperature
+    target_temp = [float(os.getenv("TARGET_TEMP", "21.0"))]
+
+    def on_message(client, userdata, msg):
         try:
-            with open(args.csv, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    ts, temp = line.split(",")
-                    yield int(ts), float(temp)
-        except FileNotFoundError:
-            print(f"CSV not found at {args.csv}, switching to random mode.")
-            yield from random_source()
+            data = json.loads(msg.payload.decode("utf-8"))
+        except Exception:
+            log('ERROR', 'malformed-json', 'Malformed JSON on topic', hotel_id=hotel_id, room=room, sensor=sensor, topic_in=msg.topic)
+            return
+        # Accept messages with target_temperature field
+        if "target_temperature" in data:
+            try:
+                new_target = float(data["target_temperature"])
+                target_temp[0] = new_target
+                log('INFO', 'target-updated', f'Target temperature updated to {new_target}', hotel_id=hotel_id, room=room, sensor=sensor, topic_in=msg.topic)
+            except Exception as e:
+                log('ERROR', 'target-update-failed', f'Failed to update target: {e}', hotel_id=hotel_id, room=room, sensor=sensor, topic_in=msg.topic)
+
+    # Subscribe to the same topic as the actuator for target updates
+    target_update_topic = f"{hotel_id}/{room}/thermostat"
+    client.subscribe(target_update_topic, qos=qos)
+    client.on_message = on_message
 
     def random_source(): # pragma: no cover
-
-        """
-        Generator producing random walk temperature readings.
-        """
-
-        # Start around START_TEMP, walk towards TARGET_TEMP
         temp = float(os.getenv("START_TEMP", "21.0"))
-        target = float(os.getenv("TARGET_TEMP", "21.0"))
         while True:
+            target = target_temp[0]
             temp += (target - temp) * 0.1
             temp += random.uniform(-0.2, 0.2)
             temp = round(temp, 2)
             yield int(time.time() * 1000), temp
             time.sleep(max(args.interval / max(args.speed, 0.01), 0.01))
 
-    # Choose source
-    source = csv_source() if args.mode == "csv" else random_source()
+    # Only use random source
+    source = random_source()
 
     # Main loop: publish telemetry
     log('INFO', 'publishing', f'publishing telemetry to {topic_telemetry}', hotel_id=hotel_id, room=room, sensor=sensor, topic_out=topic_telemetry)
