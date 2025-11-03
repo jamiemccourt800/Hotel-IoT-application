@@ -112,7 +112,7 @@ def build_ack(correlation_id, hotel_id, room, sensor, status, error=""):
         "correlationId": correlation_id,
     }
 
-def build_state(hotel_id, room, sensor, on: bool, brightness: int):
+def build_state(hotel_id, room, sensor, on: bool, brightness: int, temperature=None):
 
     """
     Build a state message.
@@ -122,10 +122,13 @@ def build_state(hotel_id, room, sensor, on: bool, brightness: int):
     
     Returns a dict suitable for JSON serialization and MQTT publishing.
     """
+    fields = {"on": on, "brightness": brightness}
+    if temperature is not None:
+        fields["temperature"] = temperature
     return {
         "measurement": "state",
         "tags": {"hotel_id": hotel_id, "room": room, "sensor": sensor},
-        "fields": {"on": on, "brightness": brightness},
+        "fields": fields,
         "timestamp": now_ms(),
     }
 
@@ -231,6 +234,7 @@ TOPIC_STATUS = f"{BASE}/status"
 # Global state
 light_on = INITIAL_ON
 brightness = INITIAL_BRIGHTNESS
+temperature = None
 
 # MQTT client setup
 client = mqtt.Client(protocol=mqtt.MQTTv311, clean_session=True, callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
@@ -249,16 +253,18 @@ def on_connect(client, userdata, flags, reason_code, properties):
     log('INFO', 'connect', f'connected to MQTT with reason_code={reason_code}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR)
     online_msg = build_alert(HOTEL_ID, ROOM, SENSOR, kind="actuator_online", severity="INFO")
     client.publish(TOPIC_STATUS, json.dumps(online_msg), qos=1, retain=False)
-    boot = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
+    global temperature
+    boot = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness, temperature)
     client.publish(TOPIC_STATE, json.dumps(boot), qos=QOS, retain=True)
-    # Subscribe to both the original command topic and the executed_actions topic for actuator commands
-    # Subscribe to original command topic, executed_actions, and Kafka-style actuator topic
+    # Subscribe to command topics for light and temperature
     client.subscribe(TOPIC_CMD, qos=QOS)
     EXEC_ACTIONS_TOPIC = f"executed_actions/{HOTEL_ID}/{ROOM}/{SENSOR}"
     client.subscribe(EXEC_ACTIONS_TOPIC, qos=QOS)
     KAFKA_ACTUATOR_TOPIC = f"actuators.{HOTEL_ID}.{ROOM}.light-actuator.cmd"
     client.subscribe(KAFKA_ACTUATOR_TOPIC, qos=QOS)
-    log('INFO', 'subscribed', f'subscribed to {TOPIC_CMD}, {EXEC_ACTIONS_TOPIC}, {KAFKA_ACTUATOR_TOPIC}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=f'{TOPIC_CMD},{EXEC_ACTIONS_TOPIC},{KAFKA_ACTUATOR_TOPIC}')
+    THERMOSTAT_TOPIC = f"{HOTEL_ID}/{ROOM}/thermostat"
+    client.subscribe(THERMOSTAT_TOPIC, qos=QOS)
+    log('INFO', 'subscribed', f'subscribed to {TOPIC_CMD}, {EXEC_ACTIONS_TOPIC}, {KAFKA_ACTUATOR_TOPIC}, {THERMOSTAT_TOPIC}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, topic_in=f'{TOPIC_CMD},{EXEC_ACTIONS_TOPIC},{KAFKA_ACTUATOR_TOPIC},{THERMOSTAT_TOPIC}')
 
 def on_message(client, userdata, msg):
     """
@@ -276,7 +282,7 @@ def on_message(client, userdata, msg):
     Returns: None
     """
     # MQTT message processing
-    global light_on, brightness
+    global light_on, brightness, temperature
     try:
         data = json.loads(msg.payload.decode("utf-8")) if msg.payload else {}
     except Exception:
@@ -289,9 +295,9 @@ def on_message(client, userdata, msg):
         client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
         return
 
+
     # If this is from executed_actions, extract the command from the 'body' field
     if msg.topic.startswith("executed_actions/"):
-        # The actual actuator command is in data['body']
         body = data.get("body", {})
         fields = body.get("fields") or {}
         action = (fields.get("action") or "").lower()
@@ -301,16 +307,37 @@ def on_message(client, userdata, msg):
         fields = data.get("fields") or {}
         action = (fields.get("action") or "").lower()
         corr = data.get("messageId")
+    # If this is from the thermostat topic and has target_temperature, treat as temperature command
+    elif msg.topic.endswith("/thermostat") and "target_temperature" in data:
+        temp_val = data.get("target_temperature")
+        corr = data.get("id") if "id" in data else None
+        try:
+            temperature = float(temp_val)
+            ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="ok", error="")
+            client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+            log('INFO', 'temperature-set', f'temperature set to {temperature}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, temperature=temperature, topic_in=msg.topic)
+            state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness, temperature)
+            client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
+            log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, temperature=temperature, topic_out=TOPIC_STATE)
+            return
+        except Exception as e:
+            ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="failed", error=str(e))
+            client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+            log('ERROR', 'temperature-error', f'error setting temperature: {e}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, error=str(e))
+            return
+        # Do not process further if temperature command handled
     else:
         fields = data.get("fields") or {}
         action = (fields.get("action") or "").lower()
         corr = data.get("messageId")
 
+    # Only reject unsupported actions if not a temperature command
     if action not in ("on", "off", "toggle", "set_brightness"):
-        log('WARNING', 'cmd-rejected', f'unsupported action: {action}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
-        ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="rejected", error=f"unsupported_action:{action}")
-        client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
-        return
+        if not (msg.topic.endswith("/thermostat") and "target_temperature" in data):
+            log('WARNING', 'cmd-rejected', f'unsupported action: {action}', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, action=action, correlation_id=corr)
+            ack = build_ack(corr, HOTEL_ID, ROOM, SENSOR, status="rejected", error=f"unsupported_action:{action}")
+            client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
+            return
 
     # Delegate command processing to the shared function which updates module state
     try:
@@ -334,9 +361,9 @@ def on_message(client, userdata, msg):
     client.publish(TOPIC_ACK, json.dumps(ack), qos=QOS, retain=False)
     log('INFO', 'ack-published', 'ack published', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, correlation_id=corr, topic_out=TOPIC_ACK)
 
-    state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
+    state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness, temperature)
     client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
-    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
+    log('INFO', 'state-changed', 'state changed', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, temperature=temperature, topic_out=TOPIC_STATE)
 
 def main(): # pragma: no cover
     """
@@ -368,11 +395,12 @@ def main(): # pragma: no cover
     # Heartbeat: publish state every minute
     import threading
     def heartbeat_loop(): # pragma: no cover
+        global temperature
         while True:
-            state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness)
+            state = build_state(HOTEL_ID, ROOM, SENSOR, light_on, brightness, temperature)
             client.publish(TOPIC_STATE, json.dumps(state), qos=QOS, retain=True)
-            log('INFO', 'heartbeat', 'periodic state heartbeat', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, topic_out=TOPIC_STATE)
-            time.sleep(60)
+            log('INFO', 'heartbeat', 'periodic state heartbeat', hotel_id=HOTEL_ID, room=ROOM, sensor=SENSOR, on=light_on, brightness=brightness, temperature=temperature, topic_out=TOPIC_STATE)
+            time.sleep(30)
     threading.Thread(target=heartbeat_loop, daemon=True).start()
 
     client.loop_forever()
