@@ -1,5 +1,5 @@
 // SliderPageTailwind.jsx
-import React, { useState } from "react";
+import { useState } from "react";
 import LightControl from "./light-control";
 import TemperatureControl from "./temp-control";
 

@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import {Switch} from '@mui/material'
 import LightBulb from '../components/lightbulb/light-bulb'
-import TemperatureSlider from '../components/temperature-slider/temp-slider'
 import axiosInstance from '../utils/axiosInstance'
 import {toast} from 'react-toastify'
 import BrightnessSlider from '../components/brightness-slide/brightness-slider'
