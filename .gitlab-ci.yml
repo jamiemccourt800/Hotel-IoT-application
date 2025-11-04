@@ -17,12 +17,12 @@ build:
   stage: build
   image: docker:latest
   script:
-    - rm -rf central/frontend/node_modules || true
+    - sudo rm -rf central/frontend/node_modules || true
     - docker network create iot-net || true
     - docker compose -f hotel/docker-compose.hotel1.yml build
     - docker compose -f central/docker-compose.central.yml build
   after_script:
-  - rm -rf central/victoria-metrics-data central/grafana/data || true
+  - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
 
 test:
   stage: test
