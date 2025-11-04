@@ -1,0 +1,257 @@
+name: central-hq
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      iot-net:
+        aliases:
+          - zookeeper
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server=kafka:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - "9092:9092"
+    networks:
+      iot-net:
+        aliases:
+          - kafka
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.126.0
+    command: 
+    - "-storageDataPath=/victoria-metrics-data"
+    - "-selfScrapeInterval=5s"
+    volumes:
+      - victoria-metrics-data:/victoria-metrics-data
+    ports:
+      - "8428:8428"
+    networks:
+      - victoriametrics
+
+
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: unless-stopped
+    volumes:
+      - ./telegraf:/etc/telegraf:ro
+    depends_on:
+      - kafka
+      - victoria-metrics
+      - zookeeper
+    networks:
+      - victoriametrics
+      - iot-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - victoria-metrics
+    networks:
+      - victoriametrics
+
+  command:
+    image: nfinnegan2023/central-command:latest
+    container_name: command
+    ports:
+      - "5000:5000"
+    environment:
+      API_PORT: 5000
+      KAFKA_BOOTSTRAP: "kafka:9092"
+      KAFKA_TOPIC: "actuator"
+      CLIENT_ID: "fastapi-producer"
+      ACKS: "all"
+      RETRIES: 10
+      LINGER_MS: 5
+    restart: unless-stopped
+    depends_on:
+      - victoria-metrics
+      - kafka
+    networks:
+      - iot-net
+    volumes:
+      - ./command:/app
+
+  # ## BOOKING SYSTEM
+  
+  # nginx:
+  #   image: nginx:1.27-alpine
+  #   ports:
+  #     - "85:80"
+  #   volumes:
+  #     - ./booking/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./booking/main/static:/usr/share/nginx/html/static:ro
+  #   depends_on:
+  #     - hotels-frontend
+  #     - users-frontend
+  #     - bookings-frontend
+  #     - hotels
+  #     - users
+  #     - bookings
+  # hotels:
+  #   build: ./booking/backend/hotels
+  #   ports:
+  #     - "5001:5001"
+  #   environment:
+  #     - MONGO_HOST=mongodb
+  #     - MONGO_PORT=27017
+  #     - MONGO_USER=root
+  #     - MONGO_PASS=1Password!
+  #     - MONGO_DB=bookings
+  #   depends_on:
+  #     - mongodb
+  # rooms:
+  #   build: ./booking/backend/rooms
+  #   ports:
+  #     - "5004:5001" 
+  #   environment:
+  #     - MONGO_HOST=mongodb
+  #     - MONGO_PORT=27017
+  #     - MONGO_USER=root
+  #     - MONGO_PASS=1Password!
+  #     - MONGO_DB=bookings
+  #   depends_on:
+  #     - mongodb
+  # users:
+  #   build: ./booking/backend/users
+  #   ports:
+  #     - "5002:5002"
+  #   environment:
+  #     - MONGO_HOST=mongodb
+  #     - MONGO_PORT=27017
+  #     - MONGO_USER=root
+  #     - MONGO_PASS=1Password!
+  #     - MONGO_DB=bookings
+  #   depends_on:
+  #     - mongodb
+  # bookings:
+  #   build: ./booking/backend/bookings
+  #   ports:
+  #     - "5003:5003"
+  #   environment:
+  #     - MONGO_HOST=mongodb
+  #     - MONGO_PORT=27017
+  #     - MONGO_USER=root
+  #     - MONGO_PASS=1Password!
+  #     - MONGO_DB=bookings
+  #   depends_on:
+  #     - mongodb
+  # hotels-frontend:
+  #   build: ./booking/frontends/hotels-frontend
+  #   ports:
+  #     - "5100:5100"
+  #   environment:
+  #     - SECRET_KEY=devops_booking
+  #     - HOTELS_API_URL=http://hotels:5001
+  #     - ROOMS_API_URL=http://rooms:5001
+  #     - USERS_API_URL=http://users:5002
+  #     - BOOKINGS_API_URL=http://bookings:5003
+  #   volumes:
+  #     - ./booking/frontends/hotels-frontend:/app
+  #     - ./booking/main/template:/app/templates_upstream:ro
+  #     - ./booking/main/static:/app/static_upstream:ro
+  #   depends_on:
+  #     - hotels
+  #     - rooms
+  #     - users
+  #     - bookings
+  # users-frontend:
+  #   build: ./booking/frontends/users-frontend
+  #   ports:
+  #     - "5200:5200"
+  #   environment:
+  #     - SECRET_KEY=devops_booking
+  #     - USERS_API_URL=http://users:5002
+  #   volumes:
+  #     - ./booking/frontends/users-frontend:/app
+  #     - ./booking/main/template:/app/templates_upstream:ro
+  #     - ./booking/main/static:/app/static_upstream:ro
+  #   depends_on:
+  #     - users
+  # bookings-frontend:
+  #   build: ./booking/frontends/bookings-frontend
+  #   ports:
+  #     - "5300:5300"
+  #   environment:
+  #     - SECRET_KEY=devops_booking
+  #     - BOOKINGS_API_URL=http://bookings:5003
+  #   volumes:
+  #     - ./booking/frontends/bookings-frontend:/app
+  #     - ./booking/main/template:/app/templates_upstream:ro
+  #     - ./booking/main/static:/app/static_upstream:ro
+  #   depends_on:
+  #     - bookings
+  
+  # mongodb:
+  #   image: mongodb/mongodb-community-server:latest
+  #   container_name: mongodb
+  #   restart: unless-stopped
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - ./booking/tempMongoDB:/data/db
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: root
+  #     MONGO_INITDB_ROOT_PASSWORD: 1Password!
+  #     MONGO_INITDB_DATABASE: bookings
+
+  mongodb:
+    image: mongo:7.0
+    container_name: my-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    command: ["--bind_ip_all"]
+  
+  app-backend:
+    image: nfinnegan2023/central-app-backend:latest
+    container_name: app-backend
+    ports:
+      - 5005:5000
+
+
+volumes:
+  victoria-metrics-data:
+  grafana-data:
+  mongodb-data:
+
+networks:
+  iot-net:
+    external: true
+  victoriametrics:
+    driver: bridge

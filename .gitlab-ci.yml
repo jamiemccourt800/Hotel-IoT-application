@@ -4,6 +4,9 @@ workflow:
       when: always
     - when: never
 
+before_script:
+  - sudo chown -R "$USER":"$USER" . || true
+
 stages:
   - build
   - test
@@ -14,12 +17,12 @@ build:
   stage: build
   image: docker:latest
   script:
-    - sudo rm -rf central/frontend/node_modules || true
+    - rm -rf central/frontend/node_modules || true
     - docker network create iot-net || true
     - docker compose -f hotel/docker-compose.hotel1.yml build
     - docker compose -f central/docker-compose.central.yml build
   after_script:
-  - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
+  - rm -rf central/victoria-metrics-data central/grafana/data || true
 
 test:
   stage: test
@@ -51,9 +54,11 @@ push:
     - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central-command:latest
     - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central-automation:latest
     - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central-app-frontend:latest
+    - docker tag central-hq-app-backend:latest $DOCKERHUB_USERNAME/central-app-backend:latest
     - docker push $DOCKERHUB_USERNAME/central-command:latest
     - docker push $DOCKERHUB_USERNAME/central-automation:latest
     - docker push $DOCKERHUB_USERNAME/central-app-frontend:latest
+    - docker push $DOCKERHUB_USERNAME/central-app-backend:latest
   only:
     - main
 
@@ -80,8 +85,8 @@ deploy:
 
     # Run with pulled images instead of building
     - echo "Starting updated containers..."
-    - docker compose -f central/docker-compose.central.yml up -d --no-build
-    - docker compose -f hotel/docker-compose.hotel1.yml up -d --no-build
+    - docker compose -f central/docker-compose.central.dockerhub.yml up -d
+    - docker compose -f hotel/docker-compose.hotel1.dockerhub.yml up -d
   only:
     - main
   when: on_success
