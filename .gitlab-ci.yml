@@ -6,23 +6,83 @@ workflow:
 
 stages:
   - build
-  - run
+  - test
+  - push
+  - deploy
 
 build:
   stage: build
   image: docker:latest
   script:
+    - sudo rm -rf central/frontend/node_modules || true
     - docker network create iot-net || true
-    - sudo docker compose -f hotel/docker-compose.hotel1.yml build
-    - sudo docker compose -f central/docker-compose.central.yml build
+    - docker compose -f hotel/docker-compose.hotel1.yml build
+    - docker compose -f central/docker-compose.central.yml build
   after_script:
   - sudo rm -rf central/victoria-metrics-data central/grafana/data || true
 
-run:
-  stage: run
+test:
+  stage: test
   image: docker:latest
   script:
     - docker compose -f hotel/docker-compose.hotel1.yml up -d
     - docker compose -f central/docker-compose.central.yml up -d
     - sleep 60
-    - curl http://127.0.0.1/health
+    - curl http://127.0.0.1:5000/health
+
+push:
+  stage: push
+  image: docker:latest
+  script:
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+        # Tag and push hotel images
+    - docker tag hotel1-temperature-sensor:latest $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
+    - docker tag hotel1-light-actuator:latest $DOCKERHUB_USERNAME/hotel-light-actuator:latest
+    - docker tag hotel1-alert-agent:latest $DOCKERHUB_USERNAME/hotel-alert-agent:latest
+    - docker tag hotel1-mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
+    - docker tag hotel1-kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
+    - docker push $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
+    - docker push $DOCKERHUB_USERNAME/hotel-light-actuator:latest
+    - docker push $DOCKERHUB_USERNAME/hotel-alert-agent:latest
+    - docker push $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
+    - docker push $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
+
+        # Tag and push central images
+    - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central-command:latest
+    - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central-automation:latest
+    - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central-app-frontend:latest
+    - docker push $DOCKERHUB_USERNAME/central-command:latest
+    - docker push $DOCKERHUB_USERNAME/central-automation:latest
+    - docker push $DOCKERHUB_USERNAME/central-app-frontend:latest
+  only:
+    - main
+
+deploy:
+  stage: deploy
+  image: docker:latest
+  script:
+    - echo "Logging in to GitLab Container Registry..."
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+    # Pull latest images from the registry
+    - docker pull $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel-light-actuator:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel-alert-agent:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
+    - docker pull $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
+    - docker pull $DOCKERHUB_USERNAME/central-command:latest
+    - docker pull $DOCKERHUB_USERNAME/central-automation:latest
+    - docker pull $DOCKERHUB_USERNAME/central-app-frontend:latest
+
+    # (Optional) Stop old containers
+    - docker compose -f central/docker-compose.central.yml down || true
+    - docker compose -f hotel/docker-compose.hotel1.yml down || true
+
+    # Run with pulled images instead of building
+    - echo "Starting updated containers..."
+    - docker compose -f central/docker-compose.central.yml up -d --no-build
+    - docker compose -f hotel/docker-compose.hotel1.yml up -d --no-build
+  only:
+    - main
+  when: on_success
+
