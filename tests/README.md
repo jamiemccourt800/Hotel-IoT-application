@@ -8,7 +8,6 @@ This directory contains the comprehensive test suite for the DevOps Group Projec
 - [Prerequisites](#prerequisites)
 - [Running Tests](#running-tests)
 - [Test Categories](#test-categories)
-- [GitLab CI Integration](#gitlab-ci-integration)
 - [Coverage Reports](#coverage-reports)
 - [Troubleshooting](#troubleshooting)
 
@@ -16,18 +15,31 @@ This directory contains the comprehensive test suite for the DevOps Group Projec
 
 ```
 tests/
-├── contract/          # Contract tests for message schemas and API contracts
-├── e2e/              # End-to-end integration tests
-├── integration/      # Integration tests for inter-service communication
-├── unit/             # Unit tests for individual components
-│   ├── central/      # Central system components
-│   ├── hotel/        # Hotel service components
-│   └── contracts/    # Contract testing utilities
-├── conftest.py       # Global pytest fixtures and configuration
-├── docker-compose.test.central.yml
-├── docker-compose.test.e2e.yml
-└── docker-compose.test.hotel.yml
+├── contract/                   # Contract tests (6 test files)
+├── contracts/                  # Shared schemas
+├── e2e/                        # End-to-end tests (2 test files + fixtures)
+├── integration/                # Integration tests (9 test files)
+├── unit/                       # Unit tests (11 test files)
+│   ├── central/
+│   │   ├── app/          # FastAPI application tests
+│   │   └── command/
+│   ├── contracts/
+│   └── hotel/
+│       ├── alert_agent/
+│       ├── light_actuator/
+│       └── sensor/
+├── conftest.py                 # Global pytest fixtures
+├── docker-compose.test.central.yml    # For integration tests
+├── docker-compose.test.e2e.yml        # For E2E tests
+├── docker-compose.test.hotel.yml      # For hotel service tests
+└── README.md                   # This file
 ```
+
+**Test Count Summary:**
+- **Unit Tests:** 11 files (~100+ test cases)
+- **Contract Tests:** 6 files (~30+ test cases)  
+- **Integration Tests:** 9 files (~25+ test cases)
+- **E2E Tests:** 2 files (~10+ test cases)
 
 ## Prerequisites
 
@@ -45,11 +57,6 @@ pip install -r requirements.txt
 
 Ensure Docker and Docker Compose are installed and running:
 
-```bash
-docker --version
-docker-compose --version
-```
-
 ### 3. Environment Setup
 
 Some tests require services to be running. The test suites use isolated Docker Compose configurations.
@@ -61,279 +68,238 @@ Some tests require services to be running. The test suites use isolated Docker C
 The project includes a Makefile with convenient test targets:
 
 ```bash
-# Run all tests
-make test
-
 # Run specific test categories
-make test-unit          # Run only unit tests
-make test-integration   # Run only integration tests
-make test-contract      # Run only contract tests
-make test-e2e          # Run only end-to-end tests
+make unit               # Run only unit tests
+make contract           # Run only contract tests
+make integration        # Run only integration tests
+make e2e               # Run only end-to-end tests
 
-# Run tests with coverage
-make test-coverage      # Run all tests with coverage report
-```
+# Run frontend tests (requires Node.js and npm)
+make frontend-test              # Run frontend tests
+make frontend-test-coverage     # Run frontend tests with coverage
 
-### Using pytest Directly
+# Run all Python tests
+make all-tests                  # Run unit, contract, and integration tests
 
-```bash
-# Run all tests
-pytest
+# Run all tests with HTML coverage report
+make all-tests-coverage-html    # Run all Python tests and open coverage report
 
-# Run specific test category
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/contract/
-pytest tests/e2e/
+# Run all tests including frontend
+make all-tests-with-frontend    # Run Python and frontend tests
 
-# Run with verbose output
-pytest -v
-
-# Run with coverage
-pytest --cov=. --cov-report=html --cov-report=xml
-
-# Run specific test file
-pytest tests/unit/hotel/alert_agent/test_alert_agent_log.py
-
-# Run tests matching a pattern
-pytest -k "test_alert" -v
+# Setup environment
+make init                       # Create virtual environment and install dependencies
 ```
 
 ## Test Categories
 
 ### Unit Tests (`tests/unit/`)
 
-Tests individual functions and classes in isolation without external dependencies.
+Tests individual functions and classes in isolation without external dependencies (no Docker or external services required).
 
-**Components tested:**
-- **Central Services:**
-  - Automation app
-  - Command service (config, controller, Kafka producer, routes)
-- **Hotel Services:**
-  - Alert agent (logging, rules)
-  - Light actuator (handler, logging)
-  - Temperature sensor (payload building, logging)
-
-**Run unit tests:**
-```bash
-pytest tests/unit/ -v
+**Structure:**
 ```
+unit/
+├── central/
+│   ├── app/           # FastAPI application tests (health endpoints)
+│   └── command/       # Command service components
+│       ├── test_config.py          # Configuration loading and validation
+│       ├── test_controller.py      # Business logic controllers
+│       ├── test_kafka_producer.py  # Kafka message production
+│       └── test_routes.py          # API route handlers
+├── contracts/
+│   └── test_unit_conftest_import.py  # Test fixture imports
+└── hotel/
+    ├── alert_agent/
+    │   ├── test_alert_agent_log.py    # Alert logging functionality
+    │   └── test_alert_agent_rules.py  # Alert rule evaluation
+    ├── light_actuator/
+    │   ├── test_light_actuator_handle.py  # Command handling logic
+    │   └── test_light_actuator_log.py     # Logging, state/alert builders, env helpers
+    └── sensor/
+        ├── test_sensor_build_payload.py  # Payload construction, validation
+        └── test_sensor_log.py            # Sensor logging functionality
+```
+
+**What's tested:**
+- **Central/Command Service:**
+  - FastAPI health endpoint behavior
+  - Configuration parsing and defaults
+  - Controller business logic
+  - Kafka producer message formatting
+  - API route request/response handling
+  
+- **Hotel/Alert Agent:**
+  - Structured logging with proper field formatting
+  - Alert rule threshold evaluation (temperature, humidity)
+  - Alert severity determination
+
+- **Hotel/Light Actuator:**
+  - Command handling (on, off, toggle, set_brightness)
+  - State message construction with/without temperature
+  - Alert and acknowledgment message builders
+  - Environment variable parsing (bool, int)
+  - Value clamping (0-100 brightness range)
+
+- **Hotel/Temperature Sensor:**
+  - Telemetry payload construction
+  - Timestamp normalization (seconds → milliseconds)
+  - Temperature validation (range: -50°C to 100°C)
+  - Data type coercion and error handling
+  - Room number validation
 
 ### Integration Tests (`tests/integration/`)
 
-Tests interaction between multiple components and services.
+Tests interaction between multiple components and services. Requires external dependencies (MQTT, Kafka) to be running.
 
-**Components tested:**
-- MQTT to Kafka message bridge
-- VictoriaMetrics data ingestion
-- Service-to-service communication
-- Message serialization/deserialization
+**Test files:**
+- `test_mqtt_to_kafka_bridge.py` - MQTT → Kafka message forwarding (happy path)
+- `test_mqtt_to_kafka_bridge_fake.py` - Bridge testing with fake/mock services
+- `test_mqtt_kafka_down.py` - Behavior when Kafka is unavailable
+- `test_mqtt_kafka_error_branch.py` - Error handling branches
+- `test_mqtt_ping.py` - MQTT connectivity tests
+- `test_victoriametrics_integration.py` - VictoriaMetrics data ingestion
+- `test_conftest_loader.py` - Module loading utilities
+- `test_integration_envs.py` - Environment configuration validation
+
+**What's tested:**
+- **MQTT to Kafka Bridge:**
+  - Messages published to MQTT are forwarded to Kafka
+  - Topic mapping and transformation
+  - Message serialization/deserialization
+  - Connection resilience when services are down
+  - Error handling and recovery
+  
+- **VictoriaMetrics Integration:**
+  - Metric data ingestion and storage
+  - Query API functionality
+  - Time-series data retrieval
+  
+- **Service Communication:**
+  - MQTT broker connectivity
+  - Kafka producer/consumer behavior
+  - Message format preservation across services
 
 **Prerequisites:**
-- Start required services using Docker Compose
-
-**Run integration tests:**
+Start required services using Docker Compose:
 ```bash
-# Start test services
-docker-compose -f docker-compose.test.central.yml up -d
+# For MQTT and Kafka tests
+docker-compose -f tests/docker-compose.test.central.yml up -d
 
-# Run integration tests
-pytest tests/integration/ -v
-
-# Cleanup
-docker-compose -f docker-compose.test.central.yml down
+# Verify services are running
+docker-compose -f tests/docker-compose.test.central.yml ps
 ```
+
+**Cleanup:**
+```bash
+docker-compose -f tests/docker-compose.test.central.yml down
+```
+
+**Note:** Some tests will skip if services are unavailable rather than fail, allowing CI to proceed.
 
 ### Contract Tests (`tests/contract/`)
 
-Tests message schemas and API contracts to ensure compatibility between services.
+Tests message schemas and API contracts to ensure compatibility between services. Validates that all components produce and consume messages according to the shared schema.
 
-**Components tested:**
-- Message schema validation
-- Alert agent contract compliance
-- Light actuator contract compliance
-- Cross-service message formats
+**Test files:**
+- `test_message_contract.py` - Message schema validation
+- `test_alert_agent_contract.py` - Alert agent message compliance
+- `test_alert_agent_edges.py` - Alert agent edge cases and error handling
+- `test_light_actuator_contract.py` - Light actuator message compliance
+- `test_light_actuator_edges.py` - Light actuator edge cases
+- `test_conftest_import.py` - Fixture imports and dependencies
 
-**Run contract tests:**
-```bash
-pytest tests/contract/ -v
-```
+**Shared schema:**
+- `contracts/message_schema.json` - Universal message format using JSON Schema
+
+**What's tested:**
+- **Message Schema Compliance:**
+  - All messages conform to JSON Schema structure
+  - Required fields are present (measurement, timestamp, fields, tags)
+  - Field types are correct (timestamps as int, etc.)
+  
+- **Alert Agent Contracts:**
+  - Temperature sensor messages trigger appropriate alerts
+  - Alert messages have correct structure (severity, kind)
+  - Subscription behavior on connection
+  
+- **Light Actuator Contracts:**
+  - Command messages are processed correctly
+  - State messages include all required fields
+  - Acknowledgment messages follow schema
+  
+- **Edge Cases:**
+  - Invalid message formats are rejected
+  - Missing required fields trigger errors
+  - Type mismatches are handled properly
 
 ### End-to-End Tests (`tests/e2e/`)
 
-Tests complete workflows from sensor input to data storage and actuation.
+Tests complete workflows from sensor input through the entire system to data storage and actuation. Validates the full data pipeline in a realistic environment.
 
-**Scenarios tested:**
-- Sensor → MQTT → Kafka → VictoriaMetrics pipeline
-- FastAPI → Light Actuator command flow
-- Complete alert generation and handling
+**Test files:**
+- `test_sensor_to_victoriametrics.py` - Complete telemetry pipeline test
+- `test_fastapi_light_actuator.py` - FastAPI command to actuator flow
+- `conftest.py` - E2E test fixtures and configuration
+
+**Test scenarios:**
+
+**1. Sensor → VictoriaMetrics Pipeline** (`test_sensor_to_victoriametrics.py`)
+Complete data flow testing:
+```
+Temperature Sensor → MQTT Broker → Kafka Topic → Telegraf → VictoriaMetrics
+```
+- Publishes temperature telemetry to MQTT topic
+- Verifies MQTT-to-Kafka bridge forwards the message
+- Confirms Telegraf consumes from Kafka
+- Validates data is stored in VictoriaMetrics
+- Queries VictoriaMetrics API to retrieve and verify the data
+
+**2. FastAPI → Light Actuator Flow** (`test_fastapi_light_actuator.py`)
+Command execution testing:
+```
+FastAPI Endpoint → Kafka Topic → Light Actuator → State Update
+```
+- Sends light control commands via FastAPI
+- Verifies commands are published to Kafka
+- Confirms light actuator processes commands
+- Validates state changes are published back
+- Tests acknowledgment message flow
+
+**What's tested:**
+- End-to-end message routing across all components
+- Data persistence in time-series database
+- Real-time command and control flow
+- System integration with actual MQTT, Kafka, Telegraf, VictoriaMetrics
+- Complete request/response cycles
+- Timing and latency considerations
 
 **Prerequisites:**
-- Start E2E test environment
-
-**Run E2E tests:**
+Start complete E2E test environment:
 ```bash
-# Start E2E test services
-docker-compose -f docker-compose.test.e2e.yml up -d
+# Start all required services
+docker-compose -f tests/docker-compose.test.e2e.yml up -d
 
-# Run E2E tests
-pytest tests/e2e/ -v
+# Wait for services to initialize (important!)
+sleep 15
 
-# Cleanup
-docker-compose -f docker-compose.test.e2e.yml down
+# Verify all services are healthy
+docker-compose -f tests/docker-compose.test.e2e.yml ps
 ```
 
-## GitLab CI Integration
+**Cleanup:**
+```bash
+docker-compose -f tests/docker-compose.test.e2e.yml down
 
-### Recommended `.gitlab-ci.yml` Configuration
-
-Add the following to your `.gitlab-ci.yml` file:
-
-```yaml
-stages:
-  - test
-  - coverage
-  - deploy
-
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-
-cache:
-  paths:
-    - .cache/pip
-    - .pytest_cache/
-
-before_script:
-  - python -m pip install --upgrade pip
-  - pip install -r requirements.txt
-  - pip install -r requirements-test.txt
-
-# Unit Tests Job
-test:unit:
-  stage: test
-  image: python:3.11
-  script:
-    - pytest tests/unit/ -v --junitxml=reports/unit.xml
-  artifacts:
-    when: always
-    reports:
-      junit: reports/unit.xml
-    paths:
-      - reports/unit.xml
-    expire_in: 30 days
-
-# Contract Tests Job
-test:contract:
-  stage: test
-  image: python:3.11
-  script:
-    - pytest tests/contract/ -v --junitxml=reports/contract.xml
-  artifacts:
-    when: always
-    reports:
-      junit: reports/contract.xml
-    paths:
-      - reports/contract.xml
-    expire_in: 30 days
-
-# Integration Tests Job
-test:integration:
-  stage: test
-  image: python:3.11
-  services:
-    - name: eclipse-mosquitto:2
-      alias: mosquitto
-    - name: confluentinc/cp-kafka:latest
-      alias: kafka
-  script:
-    - pytest tests/integration/ -v --junitxml=reports/integration.xml
-  artifacts:
-    when: always
-    reports:
-      junit: reports/integration.xml
-    paths:
-      - reports/integration.xml
-    expire_in: 30 days
-
-# E2E Tests Job
-test:e2e:
-  stage: test
-  image: python:3.11
-  services:
-    - docker:dind
-  before_script:
-    - apk add --no-cache docker-compose
-    - pip install -r requirements.txt
-    - pip install -r requirements-test.txt
-  script:
-    - docker-compose -f docker-compose.test.e2e.yml up -d
-    - sleep 10  # Wait for services to be ready
-    - pytest tests/e2e/ -v --junitxml=reports/e2e.xml
-    - docker-compose -f docker-compose.test.e2e.yml down
-  artifacts:
-    when: always
-    reports:
-      junit: reports/e2e.xml
-    paths:
-      - reports/e2e.xml
-    expire_in: 30 days
-
-# Coverage Job
-test:coverage:
-  stage: coverage
-  image: python:3.11
-  script:
-    - pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term --junitxml=reports/all.xml
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
-  artifacts:
-    when: always
-    reports:
-      junit: reports/all.xml
-      coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
-    paths:
-      - reports/
-      - htmlcov/
-      - coverage.xml
-    expire_in: 30 days
-
-# Generate coverage badge (optional)
-pages:
-  stage: deploy
-  dependencies:
-    - test:coverage
-  script:
-    - mv htmlcov/ public/
-  artifacts:
-    paths:
-      - public
-    expire_in: 30 days
-  only:
-    - main
+# Clean up volumes if needed
+docker-compose -f tests/docker-compose.test.e2e.yml down -v
 ```
 
-### Simplified CI Configuration (Minimal)
-
-If you want a simpler setup:
-
-```yaml
-stages:
-  - test
-
-test:
-  stage: test
-  image: python:3.11
-  before_script:
-    - pip install -r requirements.txt -r requirements-test.txt
-  script:
-    - make test-unit
-    - make test-contract
-  artifacts:
-    when: always
-    reports:
-      junit: reports/*.xml
-```
+**Troubleshooting E2E Tests:**
+- **Services not ready:** Increase wait time after `docker-compose up`
+- **Connection refused:** Check `docker-compose ps` to ensure all services are running
+- **Data not found in VictoriaMetrics:** Verify Telegraf configuration and Kafka topic
+- **Port conflicts:** Ensure ports 1883, 9092, 8428 are available
 
 ## Coverage Reports
 
@@ -432,4 +398,81 @@ pytest --lf
 
 # Run specific test with debugging
 pytest tests/unit/hotel/alert_agent/test_alert_agent_log.py::test_log_info -vv -s
+```
+
+## Quick Reference
+
+### Common Test Commands
+
+```bash
+# Quick test runs
+make unit                    # Fastest - no external dependencies
+make contract                # Fast - schema validation only
+make integration             # Requires MQTT + Kafka (Docker)
+make e2e                     # Slowest - full stack (Docker)
+
+# Coverage and reporting
+make all-tests-coverage-html # Generate and open HTML coverage report
+make all-tests               # All Python tests (unit + contract + integration)
+
+# Frontend (requires Node.js/npm)
+make frontend-test           # React component tests
+```
+
+### Docker Commands for Tests
+
+```bash
+# Start integration test environment
+docker-compose -f tests/docker-compose.test.central.yml up -d
+
+# Start E2E test environment
+docker-compose -f tests/docker-compose.test.e2e.yml up -d
+
+# View logs
+docker-compose -f tests/docker-compose.test.e2e.yml logs -f
+
+# Stop and remove containers
+docker-compose -f tests/docker-compose.test.e2e.yml down
+
+# Stop and remove with volumes
+docker-compose -f tests/docker-compose.test.e2e.yml down -v
+```
+
+### Output and Reporting
+
+```bash
+# Generate XML report (for CI)
+pytest --junitxml=reports/junit.xml
+
+# Generate coverage report
+pytest --cov=. --cov-report=html --cov-report=term
+
+# Generate all report types
+pytest --cov=. --cov-report=html --cov-report=xml --cov-report=term --junitxml=reports/all.xml
+
+# Open HTML coverage report (generated in htmlcov/)
+# Windows
+start reports/htmlcov/index.html
+# Linux/Mac
+open reports/htmlcov/index.html
+```
+
+### Environment Variables for Testing
+
+```bash
+# Set custom MQTT/Kafka hosts for integration tests
+export MQTT_HOST=localhost
+export MQTT_PORT=1883
+export KAFKA_BOOTSTRAP=localhost:9092
+
+# Run integration tests with custom config
+pytest tests/integration/
+
+# Disable test output capture (see print statements)
+pytest -s
+
+# Set pytest verbosity
+pytest -v    # Verbose
+pytest -vv   # Very verbose
+pytest -q    # Quiet
 ```
