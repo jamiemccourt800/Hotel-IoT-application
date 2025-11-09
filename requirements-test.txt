@@ -1,0 +1,8 @@
+jsonschema
+pytest
+pytest-cov
+jsonschema
+requests
+paho-mqtt
+kafka-python
+ulid-py

@@ -1,0 +1,108 @@
+version: '3.8'
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    ports:
+      - "18831:1883"
+    volumes:
+      - ../hotel/mosquitto:/mosquitto/config:ro
+    networks:
+      - hotel1
+      - iot-net
+
+  temperature-sensor:
+    build:
+      context: ../hotel/room1/temperature-sensor
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: temperature-sensor
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      TARGET_TEMP: 23.5
+      MODE: random
+      INTERVAL: 1.0
+      SPEED: 1.0
+    volumes:
+      - ../hotel/room1/temperature-sensor/.data:/app/.data:ro
+    networks:
+      - hotel1
+      - iot-net
+
+  light-actuator:
+    build:
+      context: ../hotel/room1/light-actuator
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: light-actuator
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      QOS: 1
+      KEEPALIVE: 60
+      INITIAL_ON: "true"
+      INITIAL_BRIGHTNESS: 100
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  alert-agent:
+    build:
+      context: ../hotel/room1/alert-agent
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      MQTT_SUB: hotel_01/#
+      MQTT_PUB: alerts
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      TEMP_HIGH_C: 30
+      OFFLINE_TIMEOUT_S: 45
+      DEDUP_WINDOW_S: 30
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  mqtt-to-kafka:
+    build: ../hotel/MQTT
+    environment:
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      MQTT_TOPIC: hotel_01/#
+      MQTT_PUB_TOPIC_PREFIX: sensors/#
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: mqtt_messages
+      KAFKA_ACTIONS_TOPIC: executed_actions
+      SITE_ID: hotel1
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  kafka-to-mqtt:
+    build: ../hotel/MQTT
+    command: ["python", "kafka_to_mqtt.py"]
+    environment:
+      KAFKA_BROKER: kafka:9092
+      KAFKA_GROUP: hotel1-bridge
+      KAFKA_PATTERN: actuators.*
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      MQTT_QOS: 1
+      MQTT_KEEPALIVE: 60
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+networks:
+  iot-net:
+    external: true
+  hotel1:
+    driver: bridge

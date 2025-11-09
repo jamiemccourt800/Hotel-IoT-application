@@ -3,3 +3,12 @@
 /central/victoria-metrics-data/
 /central/bookingdb/mongodb-data/
 /central/bookingdb/mongo-data/
+.pytest_cache/
+reports/
+htmlcov/
+.coverage
+coverage/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
