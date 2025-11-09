@@ -1,11 +1,49 @@
+# E2E Test Environment - Complete Stack
+# This docker-compose orchestrates all services needed for E2E tests
+# by composing the test.central and test.hotel services together
+#
+# Usage:
+#   docker-compose -f tests/docker-compose.test.e2e.yml up -d
+#   make e2e
+#   docker-compose -f tests/docker-compose.test.e2e.yml down
+#
 version: '3.8'
+
+# Note: This file uses docker-compose extends/includes pattern
+# For simplicity, run both test compose files:
+#   docker-compose -f tests/docker-compose.test.central.yml up -d
+#   docker-compose -f tests/docker-compose.test.hotel.yml up -d
+#   make e2e
+#
+# Or create a network and run them separately as documented below
+
 services:
-  e2e-test-placeholder:
+  # This is a placeholder to show the pattern
+  # In practice, you should run test.central.yml and test.hotel.yml
+  e2e-coordinator:
     image: busybox
-    command: sleep 3600
+    command: |
+      sh -c "
+      echo '============================================';
+      echo 'E2E Test Environment';
+      echo '============================================';
+      echo 'Start services with:';
+      echo '  docker-compose -f tests/docker-compose.test.central.yml up -d';
+      echo '  docker-compose -f tests/docker-compose.test.hotel.yml up -d';
+      echo '';
+      echo 'Run tests with:';
+      echo '  make e2e';
+      echo '';
+      echo 'Stop services with:';
+      echo '  docker-compose -f tests/docker-compose.test.central.yml down';
+      echo '  docker-compose -f tests/docker-compose.test.hotel.yml down';
+      echo '============================================';
+      sleep 3600
+      "
     networks:
       - iot-net
 
 networks:
   iot-net:
     external: true
+

@@ -2,7 +2,7 @@ import pathlib
 import json
 import pytest
 from jsonschema import validate
-from conftest import load_module
+from tests.conftest import load_module
 
 SCHEMA_PATH = pathlib.Path("tests/contracts/message_schema.json")
 SCHEMA = json.loads(SCHEMA_PATH.read_text())

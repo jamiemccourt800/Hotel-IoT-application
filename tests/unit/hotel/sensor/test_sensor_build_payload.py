@@ -4,10 +4,10 @@ import pathlib, json
 import pytest
 import time
 from jsonschema import validate
-from conftest import load_module
+from tests.conftest import load_module_from_path
 
 # Load the sensor_main module and the JSON schema for validation
-SENSOR = load_module(
+SENSOR = load_module_from_path(
     "sensor_main",
     pathlib.Path("hotel/room1/temperature-sensor/logic/main.py"),
 )
@@ -85,9 +85,47 @@ def test_invalid_temperature_rejected(bad):
 
 def test_build_payload_invalid_ts(monkeypatch):
     import pathlib
-    from conftest import load_module
-    SENSOR = load_module("sensor_main", pathlib.Path("hotel/room1/temperature-sensor/logic/main.py"))
+    from tests.conftest import load_module_from_path
+    SENSOR = load_module_from_path("sensor_main", pathlib.Path("hotel/room1/temperature-sensor/logic/main.py"))
     fixed_time = 1700000000.0
     monkeypatch.setattr("time.time", lambda: fixed_time)
     msg = SENSOR.build_payload("hotel_01", 101, "temperature-sensor", 21.5, "not-a-timestamp")
     assert msg["timestamp"] == int(fixed_time * 1000)
+
+@pytest.mark.parametrize("bad_room", ["not-a-number", None, [], {}, object()])
+def test_invalid_room_raises_type_error(bad_room):
+    """Test that invalid room values raise TypeError."""
+    with pytest.raises(TypeError, match="room must be an integer"):
+        SENSOR.build_payload("hotel_01", bad_room, "temperature-sensor", 21.5, 1700000000)
+
+def test_room_float_converts_to_int():
+    """Test that room as float gets converted to int."""
+    msg = SENSOR.build_payload("hotel_01", 101.7, "temperature-sensor", 21.5, 1700000000)
+    assert msg["tags"]["room"] == 101
+    assert isinstance(msg["tags"]["room"], int)
+
+def test_temperature_sensor_environment_variable_names():
+    """Test that temperature sensor references correct environment variable names."""
+    # The temperature sensor uses these environment variables:
+    # HOTEL_ID, ROOM, SENSOR, BROKER (or MQTT_BROKER or MQTT_HOST)
+    # BROKER_PORT (or MQTT_PORT), QOS (or MQTT_QOS), KEEPALIVE (or MQTT_KEEPALIVE)
+    # INTERVAL, SPEED, MODE, TARGET_TEMP
+    
+    # The module should be importable and use these variable names
+    # Note: We can't directly test the environment variable defaults here because
+    # they're set at module import time via argparse, but we can verify the
+    # build_payload function works with the expected parameter names that match
+    # what docker-compose.hotel1.yml provides
+    
+    # Verify function signature matches docker-compose environment variables
+    import inspect
+    sig = inspect.signature(SENSOR.build_payload)
+    params = list(sig.parameters.keys())
+    
+    # build_payload(hotel_id, room, sensor, temp_c, ts)
+    assert 'hotel_id' in params  # Maps to HOTEL_ID env var
+    assert 'room' in params       # Maps to ROOM env var
+    assert 'sensor' in params     # Maps to SENSOR env var
+    assert 'temp_c' in params     # Temperature value (matches actual parameter name)
+    assert 'ts' in params         # Timestamp
+

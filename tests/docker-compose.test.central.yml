@@ -1,5 +1,7 @@
-
+# Test Environment - Central Services
+# This docker-compose file provides all central infrastructure for E2E tests
 version: '3.8'
+
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -36,6 +38,49 @@ services:
         aliases:
           - kafka
 
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.126.0
+    command: 
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-selfScrapeInterval=5s"
+    ports:
+      - "8428:8428"
+    networks:
+      - iot-net
+      - victoriametrics
+
+  telegraf:
+    image: telegraf:latest
+    restart: unless-stopped
+    volumes:
+      - ../central/telegraf:/etc/telegraf:ro
+    depends_on:
+      - kafka
+      - victoria-metrics
+    networks:
+      - victoriametrics
+      - iot-net
+
+  command:
+    build: ../central/command
+    ports:
+      - "5000:5000"
+    environment:
+      API_PORT: 5000
+      KAFKA_BOOTSTRAP: "kafka:9092"
+      KAFKA_TOPIC: "actuator"
+      CLIENT_ID: "fastapi-producer"
+      ACKS: "all"
+      RETRIES: 10
+      LINGER_MS: 5
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    networks:
+      - iot-net
+
 networks:
   iot-net:
     external: true
+  victoriametrics:
+    driver: bridge
