@@ -76,21 +76,19 @@ test:
         --cov=. --cov-report=term-missing --cov-append
 
     # -------- Integration (bring up test stack) ----------
+    - docker ps -q | xargs -r docker rm -f || true
     - docker ps
-    - docker compose -f tests/docker-compose.test.central.yml up -d
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
     - sleep "$WAIT_INT_SECS"
     - docker compose -f tests/docker-compose.test.central.yml ps
     - python -m pytest -vv tests/integration
         --junitxml=reports/integration.xml
         --cov=. --cov-report=term-missing --cov-append
-    - docker compose -p tests-int -f tests/docker-compose.test.central.yml down -v --remove-orphans || true
-    - docker ps --filter "publish=9092" --format "{{.ID}} {{.Names}} {{.Ports}}" || true
-    - docker ps --filter "publish=9092" -q | xargs -r docker rm -f || true
 
     # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
-    - docker compose -f tests/docker-compose.test.e2e.yml ps -f tests/docker-compose.ci.yml up -d
+    - docker compose -f tests/docker-compose.test.e2e.yml ps -d
     - python -m pytest -vv tests/e2e
         --junitxml=reports/e2e.xml
         --cov=. --cov-report=term-missing --cov-append
