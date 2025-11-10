@@ -58,14 +58,16 @@ test:
       - .cache/pip
       - .pytest_cache
   before_script:
-    - apk add --no-cache python3 py3-pip git curl
-    # create & use a venv to avoid PEP 668 "externally-managed-environment"
+    - apk add --no-cache python3 py3-pip git curl \
+      build-base python3-dev musl-dev linux-headers
     - python3 -m venv .venv
     - export PATH="$PWD/.venv/bin:$PATH"
     - python -m pip install --upgrade pip wheel
     - pip install -r requirements-test.txt -r requirements.txt
+    - pip install "httpx>=0.25,<1.0" "aiokafka>=0.10,<1.0" pytest-asyncio coverage pytest-cov
     - mkdir -p reports
     - docker version && docker info
+    
   script:
     - set -eu
     # -------- Unit + contract (fast, no services) --------
