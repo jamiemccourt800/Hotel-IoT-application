@@ -81,11 +81,11 @@ test:
 
     # -------- Integration (bring up test stack) ----------
     - docker ps -q | xargs -r docker rm -f || true
-    - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d --wait
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
     - echo "Waiting for Kafka to be reachable..."
     - for i in $(seq 1 10); do nc -zv localhost 9092 && break || (echo "Retrying Kafka..." && sleep 5); done
     - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
-    - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d --wait
+    - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d
     - docker compose -p test-int -f tests/docker-compose.test.central.yml ps
     - echo "Waiting for Mosquitto to accept connections..."
     - docker compose -p test-int -f tests/docker-compose.test.central.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
