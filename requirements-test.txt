@@ -6,6 +6,3 @@ requests
 paho-mqtt
 kafka-python
 ulid-py
-httpx
-aiokafka
-pytest-asyncio
