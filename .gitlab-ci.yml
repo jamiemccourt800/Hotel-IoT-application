@@ -71,11 +71,11 @@ push:
     - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central-command:latest
     - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central-automation:latest
     - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central-app-frontend:latest
-    - docker tag central-hq-app-backend:latest $DOCKERHUB_USERNAME/central-app-backend:latest
+    #- docker tag central-hq-app-backend:latest $DOCKERHUB_USERNAME/central-app-backend:latest
     - docker push $DOCKERHUB_USERNAME/central-command:latest
     - docker push $DOCKERHUB_USERNAME/central-automation:latest
     - docker push $DOCKERHUB_USERNAME/central-app-frontend:latest
-    - docker push $DOCKERHUB_USERNAME/central-app-backend:latest
+    # - docker push $DOCKERHUB_USERNAME/central-app-backend:latest
   only:
     - main
 
