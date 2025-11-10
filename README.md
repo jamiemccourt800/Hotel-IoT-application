@@ -1,10 +1,10 @@
-# Multi-site IoT Demo (Central + 2 Hotels)
+# Multi-site IoT Demo (Central + Hotels)
+This project implements a distributed IoT monitoring system for hotel rooms with a microservices architecture split across multiple Docker Compose files:
 
 This splits the stack into three compose files:
 
 - `docker-compose.central.yml` — Central HQ: Kafka, VictoriaMetrics, Telegraf, Grafana
 - `docker-compose.hotel1.yml` — Hotel Alpha: local Mosquitto, Simulator (room 101), Node-RED, MQTT→Kafka bridge
-- `docker-compose.hotel2.yml` — Hotel Beta: local Mosquitto, Simulator (room 202), Node-RED, MQTT→Kafka bridge
 
 The bridge forwards only sensor messages to central Kafka (`mqtt_messages`). Actuator commands are handled locally and only an `actions` event is emitted to Kafka (`executed_actions`).
 
@@ -60,28 +60,31 @@ Use Node-RED in each hotel to send actuator commands to the local Mosquitto brok
 
 These will switch lights or change thermostat locally, while the action event is reported to central Kafka.
 
-## Developer: run tests (PowerShell)
+## Testing
 
-The Makefile now provides convenient targets for creating the virtualenv and running unit and integration tests. Preferred: use the Makefile (PowerShell):
+Preferred: use the Makefile (reads cross-platform Python, creates venv, and produces reports under reports/).
 
-```powershell
-# one-time: create venv and install test/dev deps
-make init
+Make targets (run e.g. `make unit`):
 
-# run unit tests (fast, no external services)
-make unit
+- `make init` — create virtualenv and install test deps (runs VENV_CREATE and installs requirements-test.txt).
+- `make unit` — run unit tests (tests/unit). Produces `reports/unit.xml`, `reports/coverage.xml` and HTML coverage at `reports/htmlcov/`.
+- `make contract` — run contract tests. Produces `reports/contract.xml`.
+- `make integration` — run integration tests (requires Docker services). Produces `reports/integration.xml`.
+- `make e2e` — run end-to-end tests. Produces `reports/e2e.xml`.
+- `make frontend-test` — run frontend (React/Jest) tests in central/app/frontend (requires Node/npm in PATH).
+- `make frontend-test-coverage` — run frontend tests with coverage (lcov + text).
+- `make all-tests` — run unit, contract and integration tests together; produces `reports/all.xml` and coverage XML.
+- `make all-tests-coverage-html` — same as above and generates HTML coverage (`reports/htmlcov/`) and attempts to open it in a browser.
+- `make all-tests-with-frontend` — run Python tests then frontend tests.
 
-# run unit tests (opens coverage.html after tests pass)
-make coverage-html
-```
+Notes:
+- If the venv python is missing, the Makefile falls back to the system `python`.
+- Frontend dir used by the Makefile is `central/app/frontend` (Windows paths handled automatically).
+- Inspect the Makefile for exact commands and output locations; run the equivalent `python -m pytest ...` commands from the Makefile if you cannot use `make`.
+- Test artifacts and coverage HTML live under `reports/` (XML junit/coverage and `htmlcov/`).
+- Integration tests require the central and hotel compose stacks to be up (see Run section).
+- For CI parity and consistent reporting prefer the Makefile targets.
 
-Fallback (avoid Makefile, PowerShell):
-
-```powershell
-# create venv and install test deps (one-time)
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements-test.txt
-
-# run unit tests
-.venv\Scripts\python.exe -m pytest -q tests/unit --cov=. --junitxml=reports/unit.xml
-```
+- Integration tests require the central and hotel compose stacks to be up
+- Test reports and coverage HTML are stored under reports/ (unit/integration XML and coverage_html/).
+- Prefer the Makefile targets for consistent environment and reporting.
