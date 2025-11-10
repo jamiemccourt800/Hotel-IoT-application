@@ -1,7 +1,0 @@
-services:
-  kafka: { ports: [] }
-  zookeeper: { ports: [] }
-  mosquitto: { ports: [] }
-  grafana: { ports: [] }
-  victoria-metrics: { ports: [] }
-  command: { ports: [] }
