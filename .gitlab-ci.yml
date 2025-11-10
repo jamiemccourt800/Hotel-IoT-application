@@ -89,7 +89,7 @@ test:
     # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
-    - docker compose -f tests/docker-compose.test.e2e.yml ps
+    - docker compose -f tests/docker-compose.test.e2e.yml ps -f tests/docker-compose.ci.yml up -d
     - python -m pytest -vv tests/e2e
         --junitxml=reports/e2e.xml
         --cov=. --cov-report=term-missing --cov-append
