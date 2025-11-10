@@ -63,8 +63,8 @@ test:
     - python3 -m venv .venv
     - export PATH="$PWD/.venv/bin:$PATH"
     - python -m pip install --upgrade pip wheel
-    - pip install -r requirements-test.txt -r requirements.txt
-    - pip install "httpx>=0.25,<1.0" "aiokafka>=0.10,<1.0" pytest-asyncio coverage pytest-cov
+    - AIOKAFKA_NO_EXTENSIONS=1 pip install -r requirements-test.txt -r requirements.txt
+    - AIOKAFKA_NO_EXTENSIONS=1 pip install "httpx>=0.25,<1.0" "aiokafka>=0.10,<1.0" pytest-asyncio coverage pytest-cov
     - mkdir -p reports
     - docker version && docker info
     
