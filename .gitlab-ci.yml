@@ -76,7 +76,7 @@ test:
         --cov=. --cov-report=term-missing --cov-append
 
     # -------- Integration (bring up test stack) ----------
-    - docker compose -f tests/docker-compose.test.central.yml up -d
+    - docker compose -f tests/docker-compose.test.central.yml up -d -f tests/docker-compose.ci.yml up -d
     - sleep "$WAIT_INT_SECS"
     - docker compose -f tests/docker-compose.test.central.yml ps
     - python -m pytest -vv tests/integration
