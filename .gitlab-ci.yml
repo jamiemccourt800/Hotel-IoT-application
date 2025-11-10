@@ -20,13 +20,6 @@ variables:
 before_script:
   - apk add --no-cache git curl
   - chown -R "$USER":"$USER" . || true
-  - git config --global credential.helper store
-  - git credential-store --file ~/.git-credentials store <<EOF
-    protocol=https
-    host=gitlab.comp.dkit.ie
-    username=$DEPLOY_USER
-    password=$DEPLOY_TOKEN
-    EOF
   - docker version
   - docker info
 
