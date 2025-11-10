@@ -80,7 +80,7 @@ test:
     - docker ps
     - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
     - sleep "$WAIT_INT_SECS"
-    - docker compose -f tests/docker-compose.test.central.yml ps
+    - docker ps
     - python -m pytest -vv tests/integration
         --junitxml=reports/integration.xml
         --cov=. --cov-report=term-missing --cov-append
@@ -88,10 +88,11 @@ test:
     # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
-    - docker compose -f tests/docker-compose.test.e2e.yml ps -d
+    - docker ps
     - python -m pytest -vv tests/e2e
         --junitxml=reports/e2e.xml
         --cov=. --cov-report=term-missing --cov-append
+        
   after_script:
     - mkdir -p reports || true
     - docker compose -f tests/docker-compose.test.e2e.yml logs -t > reports/e2e-docker.log || true
