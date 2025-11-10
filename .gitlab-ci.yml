@@ -50,8 +50,8 @@ test:
     DOCKER_TLS_CERTDIR: ""
     PYTHONPATH: "$CI_PROJECT_DIR"
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-    WAIT_INT_SECS: "20"              
-    WAIT_E2E_SECS: "30"
+    WAIT_INT_SECS: "25"   # tune if services are slow to boot
+    WAIT_E2E_SECS: "40"
   cache:
     key: "${CI_JOB_NAME}"
     paths:
@@ -59,36 +59,44 @@ test:
       - .pytest_cache
   before_script:
     - apk add --no-cache python3 py3-pip git curl
+    # create & use a venv to avoid PEP 668 "externally-managed-environment"
+    - python3 -m venv .venv
+    - export PATH="$PWD/.venv/bin:$PATH"
+    - python -m pip install --upgrade pip wheel
     - pip install -r requirements-test.txt -r requirements.txt
-    - docker version && docker info
     - mkdir -p reports
+    - docker version && docker info
   script:
-    # 1) Fast suites (no Docker services)
-    - pytest -vv tests/unit tests/contract
-            --junitxml=reports/unit_contract.xml
-            --cov=. --cov-report=term-missing --cov-append
+    - set -eu
+    # -------- Unit + contract (fast, no services) --------
+    - python -m pytest -vv tests/unit tests/contract
+        --junitxml=reports/unit_contract.xml
+        --cov=. --cov-report=term-missing --cov-append
 
-    # 2) Integration tests (bring up central test stack)
+    # -------- Integration (bring up test stack) ----------
     - docker compose -f tests/docker-compose.test.central.yml up -d
     - sleep "$WAIT_INT_SECS"
     - docker compose -f tests/docker-compose.test.central.yml ps
-    - pytest -vv tests/integration
-            --junitxml=reports/integration.xml
-            --cov=. --cov-append --cov-report=term-missing
+    - python -m pytest -vv tests/integration
+        --junitxml=reports/integration.xml
+        --cov=. --cov-report=term-missing --cov-append
     - docker compose -f tests/docker-compose.test.central.yml down || true
 
-    # 3) End-to-End tests (full pipeline)
+    # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
     - docker compose -f tests/docker-compose.test.e2e.yml ps
-    - pytest -vv tests/e2e
-            --junitxml=reports/e2e.xml
-            --cov=. --cov-append --cov-report=term-missing
+    - python -m pytest -vv tests/e2e
+        --junitxml=reports/e2e.xml
+        --cov=. --cov-report=term-missing --cov-append
   after_script:
+    # venv path again because after_script runs in a fresh shell
+    - export PATH="$PWD/.venv/bin:$PATH" || true
+    - mkdir -p reports || true
     - docker compose -f tests/docker-compose.test.e2e.yml logs -t > reports/e2e-docker.log || true
     - docker compose -f tests/docker-compose.test.e2e.yml down -v || true
-    - coverage xml -o reports/coverage.xml || true
-    - coverage html -d reports/htmlcov || true
+    - python -m coverage xml -o reports/coverage.xml || true
+    - python -m coverage html -d reports/htmlcov || true
   artifacts:
     when: always
     expire_in: 7 days
