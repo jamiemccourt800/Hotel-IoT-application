@@ -50,8 +50,8 @@ test:
     DOCKER_TLS_CERTDIR: ""
     PYTHONPATH: "$CI_PROJECT_DIR"
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-    WAIT_INT_SECS: "25"   # tune if services are slow to boot
-    WAIT_E2E_SECS: "40"
+    WAIT_INT_SECS: "60"   # tune if services are slow to boot
+    WAIT_E2E_SECS: "60"
     AIOKAFKA_NO_EXTENSIONS: "1"
     TEST_MQTT_HOST: localhost
     TEST_MQTT_PORT:  1883
