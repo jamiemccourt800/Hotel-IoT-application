@@ -83,6 +83,7 @@ test:
     - docker ps -q | xargs -r docker rm -f || true
     - docker ps
     - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
+    - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d
     - sleep "$WAIT_INT_SECS"
     - docker ps
     - python -m pytest -vv tests/integration
