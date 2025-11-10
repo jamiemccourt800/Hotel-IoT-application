@@ -3,7 +3,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto
     ports:
-      - "18831:1883"
+      - "1883:1883"
     volumes:
       - ../hotel/mosquitto:/mosquitto/config:ro
     networks:
