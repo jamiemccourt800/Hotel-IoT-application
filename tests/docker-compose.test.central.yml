@@ -79,6 +79,25 @@ services:
     networks:
       - iot-net
 
+  tests:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ..:/app
+    command: >
+      bash -c "pip install -r requirements-test.txt -r requirements.txt &&
+               pytest -vv tests/integration
+                 --junitxml=reports/integration.xml
+                 --cov=. --cov-report=term-missing --cov-append"
+    depends_on:
+      - kafka
+      - victoria-metrics
+      - command
+      - telegraf
+    networks:
+      - iot-net
+    
+
 networks:
   iot-net:
     external: true
