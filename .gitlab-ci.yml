@@ -98,8 +98,6 @@ test:
         
   after_script:
     - mkdir -p reports || true
-    - docker compose -f tests/docker-compose.test.e2e.yml logs -t > reports/e2e-docker.log || true
-    - docker compose -f tests/docker-compose.test.e2e.yml down -v || true
     - '[ -x .venv/bin/python ] && .venv/bin/python -m coverage xml -o reports/coverage.xml || true'
     - '[ -x .venv/bin/python ] && .venv/bin/python -m coverage html -d reports/htmlcov || true'
   artifacts:
