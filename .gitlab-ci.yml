@@ -87,7 +87,6 @@ test:
     - echo "Waiting for Kafka inside network..."
     - for i in $(seq 1 20); do docker exec test-int-kafka-1 bash -c 'echo > /dev/tcp/localhost/9092' && break || (echo "Kafka not ready yet..." && sleep 5); done
     - echo "Kafka is reachable, running tests..."
-    - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
     - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d
     - docker compose -p test-int -f tests/docker-compose.test.central.yml ps
     - echo "Waiting for Mosquitto to accept connections..."
@@ -101,9 +100,7 @@ test:
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
     - docker ps
-    - python -m pytest -vv tests/e2e
-        --junitxml=reports/e2e.xml
-        --cov=. --cov-report=term-missing --cov-append
+    - bash -c "pip install -r requirements-test.txt -r requirements.txt && pytest -vv tests/integration --junitxml=reports/integration.xml --cov=. --cov-report=term-missing --cov-append"
         
   after_script:
     - mkdir -p reports || true
