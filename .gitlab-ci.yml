@@ -146,6 +146,7 @@ deploy:
   stage: deploy
   script:
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - docker network create iot-net || true
 
     # Pull latest images from Docker Hub
     - docker pull $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
