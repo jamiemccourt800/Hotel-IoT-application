@@ -1,10 +1,10 @@
-# Multi-site IoT Demo (Central + 2 Hotels)
+# Multi-site IoT Demo (Central + Hotels)
+This project implements a distributed IoT monitoring system for hotel rooms with a microservices architecture split across multiple Docker Compose files:
 
 This splits the stack into three compose files:
 
 - `docker-compose.central.yml` — Central HQ: Kafka, VictoriaMetrics, Telegraf, Grafana
 - `docker-compose.hotel1.yml` — Hotel Alpha: local Mosquitto, Simulator (room 101), Node-RED, MQTT→Kafka bridge
-- `docker-compose.hotel2.yml` — Hotel Beta: local Mosquitto, Simulator (room 202), Node-RED, MQTT→Kafka bridge
 
 The bridge forwards only sensor messages to central Kafka (`mqtt_messages`). Actuator commands are handled locally and only an `actions` event is emitted to Kafka (`executed_actions`).
 
@@ -60,33 +60,31 @@ Use Node-RED in each hotel to send actuator commands to the local Mosquitto brok
 
 These will switch lights or change thermostat locally, while the action event is reported to central Kafka.
 
-## Run iot-simulator 
+## Testing
 
-1) Run as part of the hotel compose (recommended)
+Preferred: use the Makefile (reads cross-platform Python, creates venv, and produces reports under reports/).
 
-From the repo root, start the hotel stack (this launches a local Mosquitto instance, the simulator container, Node-RED and the mqtt->kafka bridge for that hotel):
+Make targets (run e.g. `make unit`):
 
-```powershell
-docker compose -f docker-compose.hotel1.yml up -d --build
-```
+- `make init` — create virtualenv and install test deps (runs VENV_CREATE and installs requirements-test.txt).
+- `make unit` — run unit tests (tests/unit). Produces `reports/unit.xml`, `reports/coverage.xml` and HTML coverage at `reports/htmlcov/`.
+- `make contract` — run contract tests. Produces `reports/contract.xml`.
+- `make integration` — run integration tests (requires Docker services). Produces `reports/integration.xml`.
+- `make e2e` — run end-to-end tests. Produces `reports/e2e.xml`.
+- `make frontend-test` — run frontend (React/Jest) tests in central/app/frontend (requires Node/npm in PATH).
+- `make frontend-test-coverage` — run frontend tests with coverage (lcov + text).
+- `make all-tests` — run unit, contract and integration tests together; produces `reports/all.xml` and coverage XML.
+- `make all-tests-coverage-html` — same as above and generates HTML coverage (`reports/htmlcov/`) and attempts to open it in a browser.
+- `make all-tests-with-frontend` — run Python tests then frontend tests.
 
-Repeat for hotel2 if required:
+Notes:
+- If the venv python is missing, the Makefile falls back to the system `python`.
+- Frontend dir used by the Makefile is `central/app/frontend` (Windows paths handled automatically).
+- Inspect the Makefile for exact commands and output locations; run the equivalent `python -m pytest ...` commands from the Makefile if you cannot use `make`.
+- Test artifacts and coverage HTML live under `reports/` (XML junit/coverage and `htmlcov/`).
+- Integration tests require the central and hotel compose stacks to be up (see Run section).
+- For CI parity and consistent reporting prefer the Makefile targets.
 
-```powershell
-docker compose -f docker-compose.hotel2.yml up -d --build
-```
-
-2) Run the simulator container standalone (advanced)
-
-You can also run the simulator image by itself. The simulator image is built from `iot-simulator/Dockerfile`.
-
-Example (runs the simulator container and points it at a broker on the Docker network named `mosquitto`):
-
-```powershell
-# build image (from repo root)
-docker build -t iot-simulator:local ./iot-simulator
-
-# run simulator container (connects to mosquitto on the 'default' compose network)
-docker run --rm --network iot-net --name iot-sim -e MQTT_BROKER=mosquitto -e MQTT_PORT=1883 iot-simulator:local
-```
-
+- Integration tests require the central and hotel compose stacks to be up
+- Test reports and coverage HTML are stored under reports/ (unit/integration XML and coverage_html/).
+- Prefer the Makefile targets for consistent environment and reporting.

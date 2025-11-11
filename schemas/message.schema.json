@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["timestamp", "measurement", "tags", "fields"],
+  "properties": {
+    "timestamp": { "type": "integer", "minimum": 0 },
+    "measurement": { "type": "string" },
+    "tags": {
+      "type": "object",
+      "required": ["hotel_id", "room", "sensor"],
+      "properties": {
+        "hotel_id": { "type": "string" },
+        "room": { "type": "integer" },
+        "sensor": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "fields": {
+      "type": "object",
+      "required": ["temperatureC"],
+      "properties": {
+        "temperatureC": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

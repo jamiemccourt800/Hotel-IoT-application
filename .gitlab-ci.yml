@@ -2,10 +2,28 @@ workflow:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: always
+    - if: '$CI_COMMIT_TAG'
+      when: always
     - when: never
 
+image: docker:27
+
+services:
+  - name: docker:27-dind
+    command: ["--tls=false", "--mtu=1450"]
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: "" 
+  DOCKER_DRIVER: overlay2
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+
 before_script:
-  - sudo chown -R "$USER":"$USER" . || true
+  - apk add --no-cache git curl
+  - chown -R "$USER":"$USER" . || true
+  - docker version
+  - docker info
 
 stages:
   - build
@@ -15,79 +33,121 @@ stages:
 
 build:
   stage: build
-  image: docker:latest
   script:
     - rm -rf central/frontend/node_modules || true
     - docker network create iot-net || true
     - docker compose -f hotel/docker-compose.hotel1.yml build
     - docker compose -f central/docker-compose.central.yml build
   after_script:
-  - rm -rf central/victoria-metrics-data central/grafana/data || true
+    - rm -rf central/victoria-metrics-data central/grafana/data || true
 
 test:
   stage: test
-  image: docker:latest
+  image: docker:27
+  services:
+    - name: docker:27-dind
+      command: ["--tls=false", "--mtu=1450"]
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    PYTHONPATH: "$CI_PROJECT_DIR"
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+    WAIT_INT_SECS: "60"   # tune if services are slow to boot
+    WAIT_E2E_SECS: "60"
+    AIOKAFKA_NO_EXTENSIONS: "1"
+    TEST_MQTT_HOST: localhost
+    TEST_MQTT_PORT:  1883
+    TEST_KAFKA_BOOTSTRAP: http://localhost:9092
+    TEST_VICTORIA_METRICS_URL: http://localhost:8428
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .cache/pip
+      - .pytest_cache
+  before_script:
+    - apk add --no-cache python3 py3-pip git curl build-base python3-dev musl-dev linux-headers zlib-dev
+    - python3 -m venv .venv
+    - export PATH="$PWD/.venv/bin:$PATH"
+    - python -m pip install --upgrade pip wheel
+    - AIOKAFKA_NO_EXTENSIONS=1 pip install -r requirements-test.txt -r requirements.txt
+    - AIOKAFKA_NO_EXTENSIONS=1 pip install "httpx>=0.25,<1.0" "aiokafka>=0.10,<1.0" pytest-asyncio coverage pytest-cov
+    - mkdir -p reports
+    - echo "Creating shared network for integration tests..."
+    - docker network create iot-net || true
+    - docker version && docker info
+    
   script:
-    - docker compose -f hotel/docker-compose.hotel1.yml up -d
-    - docker compose -f central/docker-compose.central.yml up -d
-    - sleep 60
-    - curl http://127.0.0.1:5000/health
+    - set -eu
+    # -------- Unit + contract (fast, no services) --------
+    - python -m pytest -vv tests/unit tests/contract --junitxml=reports/unit_contract.xml --cov=. --cov-report=term-missing --cov-append
+
+    # -------- Integration (bring up test stack) ----------
+    - docker ps -q | xargs -r docker rm -f || true
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
+    - echo "Waiting for Kafka inside network..."
+    - for i in $(seq 1 20); do docker exec test-int-kafka-1 bash -c 'echo > /dev/tcp/localhost/9092' && break || (echo "Kafka not ready yet..." && sleep 5); done
+    - echo "Kafka is reachable, running tests..."
+    - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml ps
+    - echo "Waiting for Mosquitto to accept connections..."
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
+    - echo "Running integration tests *inside* Compose network"
+    - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
+        
+  after_script:
+    - mkdir -p reports || true
+    - '[ -x .venv/bin/python ] && .venv/bin/python -m coverage xml -o reports/coverage.xml || true'
+    - '[ -x .venv/bin/python ] && .venv/bin/python -m coverage html -d reports/htmlcov || true'
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - reports/
+      - .coverage
+      - .pytest_cache/
+    reports:
+      junit:
+        - reports/unit_contract.xml
+        - reports/integration.xml
+        - reports/e2e.xml
 
 push:
   stage: push
-  image: docker:latest
   script:
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-        # Tag and push hotel images
-    - docker tag hotel1-temperature-sensor:latest $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
-    - docker tag hotel1-light-actuator:latest $DOCKERHUB_USERNAME/hotel-light-actuator:latest
-    - docker tag hotel1-alert-agent:latest $DOCKERHUB_USERNAME/hotel-alert-agent:latest
-    - docker tag hotel1-mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
-    - docker tag hotel1-kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
-    - docker push $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
-    - docker push $DOCKERHUB_USERNAME/hotel-light-actuator:latest
-    - docker push $DOCKERHUB_USERNAME/hotel-alert-agent:latest
-    - docker push $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
-    - docker push $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
+    - docker compose -f hotel/docker-compose.hotel1.yml build
+    - docker compose -f central/docker-compose.central.yml build
 
-        # Tag and push central images
-    - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central-command:latest
-    - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central-automation:latest
-    - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central-app-frontend:latest
-    - docker tag central-hq-app-backend:latest $DOCKERHUB_USERNAME/central-app-backend:latest
-    - docker push $DOCKERHUB_USERNAME/central-command:latest
-    - docker push $DOCKERHUB_USERNAME/central-automation:latest
-    - docker push $DOCKERHUB_USERNAME/central-app-frontend:latest
-    - docker push $DOCKERHUB_USERNAME/central-app-backend:latest
-  only:
-    - main
+    # Determine tag based on branch/tag
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        export IMAGE_TAG="stable"
+      else
+        export IMAGE_TAG="latest"
+      fi
+      echo "Pushing images with tag: $IMAGE_TAG"
 
-deploy:
-  stage: deploy
-  image: docker:latest
-  script:
-    - echo "Logging in to GitLab Container Registry..."
-    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    # Tag and push hotel services
+    - docker tag hotel1-temperature-sensor:latest $DOCKERHUB_USERNAME/hotel-temperature-sensor:$IMAGE_TAG
+    - docker tag hotel1-light-actuator:latest $DOCKERHUB_USERNAME/hotel-light-actuator:$IMAGE_TAG
+    - docker tag hotel1-alert-agent:latest $DOCKERHUB_USERNAME/hotel-alert-agent:$IMAGE_TAG
+    - docker tag hotel1-mqtt-to-kafka:latest $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:$IMAGE_TAG
+    - docker tag hotel1-kafka-to-mqtt:latest $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/hotel-temperature-sensor:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/hotel-light-actuator:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/hotel-alert-agent:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:$IMAGE_TAG
 
-    # Pull latest images from the registry
-    - docker pull $DOCKERHUB_USERNAME/hotel-temperature-sensor:latest
-    - docker pull $DOCKERHUB_USERNAME/hotel-light-actuator:latest
-    - docker pull $DOCKERHUB_USERNAME/hotel-alert-agent:latest
-    - docker pull $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:latest
-    - docker pull $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:latest
-    - docker pull $DOCKERHUB_USERNAME/central-command:latest
-    - docker pull $DOCKERHUB_USERNAME/central-automation:latest
-    - docker pull $DOCKERHUB_USERNAME/central-app-frontend:latest
-
-    # (Optional) Stop old containers
-    - docker compose -f central/docker-compose.central.yml down || true
-    - docker compose -f hotel/docker-compose.hotel1.yml down || true
-
-    # Run with pulled images instead of building
-    - echo "Starting updated containers..."
-    - docker compose -f central/docker-compose.central.dockerhub.yml up -d
-    - docker compose -f hotel/docker-compose.hotel1.dockerhub.yml up -d
-  only:
-    - main
-  when: on_success
-
+    # Tag and push central services
+    - docker tag central-hq-command:latest $DOCKERHUB_USERNAME/central-command:$IMAGE_TAG
+    - docker tag central-hq-automation:latest $DOCKERHUB_USERNAME/central-automation:$IMAGE_TAG
+    - docker tag central-hq-app-frontend:latest $DOCKERHUB_USERNAME/central-app-frontend:$IMAGE_TAG
+    #- docker tag central-hq-app-backend:latest $DOCKERHUB_USERNAME/central-app-backend:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/central-command:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/central-automation:$IMAGE_TAG
+    - docker push $DOCKERHUB_USERNAME/central-app-frontend:$IMAGE_TAG
+    # - docker push $DOCKERHUB_USERNAME/central-app-backend:$IMAGE_TAG
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG'

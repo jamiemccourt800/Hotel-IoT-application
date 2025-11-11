@@ -1,0 +1,102 @@
+# Test Environment - Central Services
+# This docker-compose file provides all central infrastructure for E2E tests
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      iot-net:
+        aliases:
+          - zookeeper
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    restart: unless-stopped
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server=kafka:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - "9092:9092"
+    networks:
+      iot-net:
+        aliases:
+          - kafka
+
+  victoria-metrics:
+    image: victoriametrics/victoria-metrics:v1.126.0
+    command: 
+      - "-storageDataPath=/victoria-metrics-data"
+      - "-selfScrapeInterval=5s"
+    ports:
+      - "8428:8428"
+    networks:
+      - iot-net
+      - victoriametrics
+
+  telegraf:
+    image: telegraf:latest
+    restart: unless-stopped
+    volumes:
+      - ../central/telegraf:/etc/telegraf:ro
+    depends_on:
+      - kafka
+      - victoria-metrics
+    networks:
+      - victoriametrics
+      - iot-net
+
+  command:
+    build: ../central/command
+    ports:
+      - "5000:5000"
+    environment:
+      API_PORT: 5000
+      KAFKA_BOOTSTRAP: "kafka:9092"
+      KAFKA_TOPIC: "actuator"
+      CLIENT_ID: "fastapi-producer"
+      ACKS: "all"
+      RETRIES: 10
+      LINGER_MS: 5
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    networks:
+      - iot-net
+
+  tests:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ..:/app
+    command: >
+      bash -c "pip install -r requirements-test.txt -r requirements.txt && pytest -vv tests/integration --junitxml=reports/integration.xml --cov=. --cov-report=term-missing --cov-append"
+    depends_on:
+      - kafka
+      - victoria-metrics
+      - command
+      - telegraf
+    networks:
+      - iot-net
+    
+
+networks:
+  iot-net:
+    external: true
+  victoriametrics:
+    driver: bridge
