@@ -77,9 +77,7 @@ test:
   script:
     - set -eu
     # -------- Unit + contract (fast, no services) --------
-    - python -m pytest -vv tests/unit tests/contract
-        --junitxml=reports/unit_contract.xml
-        --cov=. --cov-report=term-missing --cov-append
+    - python -m pytest -vv tests/unit tests/contract --junitxml=reports/unit_contract.xml --cov=. --cov-report=term-missing --cov-append
 
     # -------- Integration (bring up test stack) ----------
     - docker ps -q | xargs -r docker rm -f || true
@@ -95,12 +93,12 @@ test:
     - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
     - docker compose -p test-int -f tests/docker-compose.test.central.yml down -v --remove-orphans || true
 
-
     # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
     - sleep "$WAIT_E2E_SECS"
     - docker ps
-    - bash -c "pip install -r requirements-test.txt -r requirements.txt && pytest -vv tests/integration --junitxml=reports/integration.xml --cov=. --cov-report=term-missing --cov-append"
+    - pip install -r requirements-test.txt -r requirements.txt
+    - pytest -vv tests/integration --junitxml=reports/integration.xml --cov=. --cov-report=term-missing --cov-append
         
   after_script:
     - mkdir -p reports || true
