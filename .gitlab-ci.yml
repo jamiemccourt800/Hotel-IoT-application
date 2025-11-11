@@ -70,6 +70,8 @@ test:
     - AIOKAFKA_NO_EXTENSIONS=1 pip install -r requirements-test.txt -r requirements.txt
     - AIOKAFKA_NO_EXTENSIONS=1 pip install "httpx>=0.25,<1.0" "aiokafka>=0.10,<1.0" pytest-asyncio coverage pytest-cov
     - mkdir -p reports
+    - echo "Creating shared network for integration tests..."
+    - docker network create iot-net || true
     - docker version && docker info
     
   script:
