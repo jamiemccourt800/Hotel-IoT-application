@@ -91,7 +91,6 @@ test:
     - docker compose -p test-int -f tests/docker-compose.test.central.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
     - echo "Running integration tests *inside* Compose network"
     - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
-    - docker compose -p test-int -f tests/docker-compose.test.central.yml down -v --remove-orphans || true
 
     # -------- E2E (full stack) ---------------------------
     - docker compose -f tests/docker-compose.test.e2e.yml up -d
