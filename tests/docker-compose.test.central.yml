@@ -85,10 +85,7 @@ services:
     volumes:
       - ..:/app
     command: >
-      bash -c "pip install -r requirements-test.txt -r requirements.txt &&
-               pytest -vv tests/integration
-                 --junitxml=reports/integration.xml
-                 --cov=. --cov-report=term-missing --cov-append"
+      bash -c "pip install -r requirements-test.txt -r requirements.txt && pytest -vv tests/integration --junitxml=reports/integration.xml --cov=. --cov-report=term-missing --cov-append"
     depends_on:
       - kafka
       - victoria-metrics
