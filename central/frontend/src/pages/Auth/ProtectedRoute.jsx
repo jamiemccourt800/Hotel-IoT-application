@@ -1,4 +1,3 @@
-// ProtectedRoute.jsx
 import { Navigate } from "react-router-dom";
 
 const ProtectedRoute = ({ user, allowedRoles, children }) => {
