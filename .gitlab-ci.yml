@@ -94,7 +94,7 @@ test:
 
     # -------- E2E (full stack) ---------------------------
     - docker ps
-    - curl localhost:5000 || true
+    - curl -svS http://localhost:8428/health|| true
         
   after_script:
     - mkdir -p reports || true
