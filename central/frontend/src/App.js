@@ -7,6 +7,18 @@ import axiosInstance from './utils/axiosInstance';
 
 function App() {
 
+  const checkCommandService = async () => {
+    try {
+      await axiosInstance.get('/health');
+    } catch (error) {
+      console.error('Command Service is not reachable:', error);
+    }
+  }
+
+  useEffect(() => {
+    checkCommandService();
+  }, []);
+
   return (
     <div className="App">
       <Home/>
