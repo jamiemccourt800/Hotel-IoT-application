@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 
 const TemperatureControl = () => {
   const [updating, setIsUpdating] = useState(false);
-  const [temp, setTemp] = useState(null);
+  const [temp, setTemp] = useState(15);
 
 
   const getTemperature = async () => {
@@ -40,13 +40,11 @@ const TemperatureControl = () => {
 
   return (
     <div className="flex flex-row items-center justify-center gap-4">
-      {temp !== null && (
         <TemperatureSlider
           initialValue={temp}
           onSliderChange={setTemperature}
           disabled={updating}
         />
-      )}
     </div>
   );
 };

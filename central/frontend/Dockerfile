@@ -8,6 +8,8 @@ RUN apk add --no-cache python3 make g++
 # set environment variables for build
 ENV REACT_APP_HOTELID=hotel_01
 ENV REACT_APP_ROOMID=101
+ENV REACT_APP_COMMAND_SERVICE_URL=/command
+
 ENV PATH=/app/node_modules/.bin:$PATH
 
 # install dependencies
