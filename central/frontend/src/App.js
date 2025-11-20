@@ -7,6 +7,7 @@ import AdminDashboard from './pages/Admin/admin-dashboard';
 import ProtectedRoute from './pages/Auth/ProtectedRoute';
 import Unauthorized from './pages/Auth/Unauthorized';
 import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
+import AdminHeader from './components/header/adminheader';
 
 function App() {
   const user = { name: "Ibukun", role: "admin" };
@@ -42,8 +43,8 @@ function App() {
 
 const AdminLayout = () => {
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold mb-4 text-center">Admin Panel</h1>
+    <div>
+      <AdminHeader/>
       <Outlet />
     </div>
   );

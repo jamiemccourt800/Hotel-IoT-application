@@ -1,0 +1,28 @@
+.momo-signature-regular {
+  font-family: "Momo Signature", cursive;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.header{
+  background-color: #0A0A0A;  
+  padding: 20px 0;
+}
+
+.App{
+  height: 100vh;
+  background-color: #1A1A1A
+;
+    /* background: linear-gradient(135deg, #0A0A0A 0%, #121212 40%, #1F1F1F 50%, #00BFFF 100%);
+  color: #E0E0E0;
+  font-family: 'Segoe UI', sans-serif; */
+}
+
+.menu-item{
+  border-style: outset;
+  border-color: white;
+}
+
+.menu-item:hover{
+  background-color: #102A43;
+}
