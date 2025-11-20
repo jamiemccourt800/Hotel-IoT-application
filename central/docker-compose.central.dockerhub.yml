@@ -243,6 +243,14 @@ services:
     container_name: app-backend
     ports:
       - 5005:5000
+  
+  app-frontend:
+    image: dkitdevops/app-frontend:v1.0
+    ports:
+      - 3001:3000
+    environment:
+      REACT_APP_HOTELID: hotel_01
+      REACT_APP_ROOMID: 101
 
 
 volumes:

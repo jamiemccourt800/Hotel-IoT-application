@@ -12,6 +12,18 @@ import AdminHeader from './components/header/adminheader';
 function App() {
   const user = { name: "Ibukun", role: "admin" };
 
+  const checkCommandService = async () => {
+    try {
+      await axiosInstance.get('/health');
+    } catch (error) {
+      console.error('Command Service is not reachable:', error);
+    }
+  }
+
+  useEffect(() => {
+    checkCommandService();
+  }, []);
+
   return (
     <BrowserRouter>
       <div className="App">
