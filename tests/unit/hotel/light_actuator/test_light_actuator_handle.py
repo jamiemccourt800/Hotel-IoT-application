@@ -1,181 +1,192 @@
 # test_light_actuator_handle.py - Unit tests for light_actuator command handling
 
 import pytest
-from tests.conftest import load_module_from_path
+import sys
+import os
 
-LIGHT_ACTUATOR = load_module_from_path(
-    "light_actuator",
-    "hotel/room1/light-actuator/logic/main.py",
-)
+# Add hotel/room1 to path for importing common modules
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'hotel', 'room1'))
 
-def test_turn_on_light():
+# Import the actuator class
+from common import DeviceConfig, MQTTConfig
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'hotel', 'room1', 'light-actuator', 'app'))
+from actuator import LightActuator
+
+@pytest.fixture
+def light_actuator():
+    """Create a light actuator instance for testing"""
+    device_config = DeviceConfig(hotel_id="test_hotel", room=101, sensor="light-actuator")
+    mqtt_config = MQTTConfig(broker="localhost", port=1883, qos=1, keepalive=60)
+    return LightActuator(device_config, mqtt_config)
+
+def test_turn_on_light(light_actuator):
     """Test turning on the light using process_command_action."""
     # Reset state
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
-    result = LIGHT_ACTUATOR.process_command_action("on", {})
+    result = light_actuator.process_command_action("on", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
-    assert LIGHT_ACTUATOR.brightness == 100  # Default brightness when turning on from 0
+    assert light_actuator.light_on is True
+    assert light_actuator.brightness == 100  # Default brightness when turning on from 0
 
-def test_turn_off_light():
+def test_turn_off_light(light_actuator):
     """Test turning off the light using process_command_action."""
     # Set initial state
-    LIGHT_ACTUATOR.light_on = True
-    LIGHT_ACTUATOR.brightness = 50
+    light_actuator.light_on = True
+    light_actuator.brightness = 50
     
-    result = LIGHT_ACTUATOR.process_command_action("off", {})
+    result = light_actuator.process_command_action("off", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is False
-    assert LIGHT_ACTUATOR.brightness == 0
+    assert light_actuator.light_on is False
+    assert light_actuator.brightness == 0
 
-def test_toggle_light():
+def test_toggle_light(light_actuator):
     """Test toggling the light using process_command_action."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
-    result = LIGHT_ACTUATOR.process_command_action("toggle", {})
+    result = light_actuator.process_command_action("toggle", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
+    assert light_actuator.light_on is True
 
-def test_turn_on_with_brightness():
+def test_turn_on_with_brightness(light_actuator):
     """Test turning on light with specified brightness."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
-    result = LIGHT_ACTUATOR.process_command_action("on", {"brightness": 75})
+    result = light_actuator.process_command_action("on", {"brightness": 75})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
-    assert LIGHT_ACTUATOR.brightness == 75
+    assert light_actuator.light_on is True
+    assert light_actuator.brightness == 75
 
-def test_turn_on_with_value_field():
+def test_turn_on_with_value_field(light_actuator):
     """Test turning on light with 'value' field instead of 'brightness'."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
-    result = LIGHT_ACTUATOR.process_command_action("on", {"value": 60})
+    result = light_actuator.process_command_action("on", {"value": 60})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
-    assert LIGHT_ACTUATOR.brightness == 60
+    assert light_actuator.light_on is True
+    assert light_actuator.brightness == 60
 
-def test_turn_on_brightness_invalid_type():
+def test_turn_on_brightness_invalid_type(light_actuator):
     """Test that turning on with invalid brightness type raises TypeError."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
     with pytest.raises(TypeError, match="brightness must be an integer"):
-        LIGHT_ACTUATOR.process_command_action("on", {"brightness": "not-a-number"})
+        light_actuator.process_command_action("on", {"brightness": "not-a-number"})
 
-def test_turn_on_without_brightness_when_already_set():
+def test_turn_on_without_brightness_when_already_set(light_actuator):
     """Test turning on when brightness is already > 0."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 50
+    light_actuator.light_on = False
+    light_actuator.brightness = 50
     
-    result = LIGHT_ACTUATOR.process_command_action("on", {})
+    result = light_actuator.process_command_action("on", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
-    assert LIGHT_ACTUATOR.brightness == 50  # Should maintain current brightness
+    assert light_actuator.light_on is True
+    assert light_actuator.brightness == 50  # Should maintain current brightness
 
-def test_set_brightness():
+def test_set_brightness(light_actuator):
     """Test setting brightness."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
-    result = LIGHT_ACTUATOR.process_command_action("set_brightness", {"value": 50})
+    result = light_actuator.process_command_action("set_brightness", {"value": 50})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.brightness == 50
-    assert LIGHT_ACTUATOR.light_on is True  # Should turn on when brightness > 0
+    assert light_actuator.brightness == 50
+    assert light_actuator.light_on is True  # Should turn on when brightness > 0
 
-def test_set_brightness_to_zero():
+def test_set_brightness_to_zero(light_actuator):
     """Test setting brightness to 0."""
-    LIGHT_ACTUATOR.light_on = True
-    LIGHT_ACTUATOR.brightness = 100
+    light_actuator.light_on = True
+    light_actuator.brightness = 100
     
-    result = LIGHT_ACTUATOR.process_command_action("set_brightness", {"value": 0})
+    result = light_actuator.process_command_action("set_brightness", {"value": 0})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.brightness == 0
-    assert LIGHT_ACTUATOR.light_on is False  # Should turn off when brightness is 0
+    assert light_actuator.brightness == 0
+    assert light_actuator.light_on is False  # Should turn off when brightness is 0
 
-def test_set_brightness_with_brightness_field():
+def test_set_brightness_with_brightness_field(light_actuator):
     """Test setting brightness using 'brightness' field instead of 'value'."""
-    result = LIGHT_ACTUATOR.process_command_action("set_brightness", {"brightness": 45})
+    result = light_actuator.process_command_action("set_brightness", {"brightness": 45})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.brightness == 45
+    assert light_actuator.brightness == 45
 
-def test_toggle_light_off_to_on():
+def test_toggle_light_off_to_on(light_actuator):
     """Test toggling light from off to on."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 50
+    light_actuator.light_on = False
+    light_actuator.brightness = 50
     
-    result = LIGHT_ACTUATOR.process_command_action("toggle", {})
+    result = light_actuator.process_command_action("toggle", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is True
-    assert LIGHT_ACTUATOR.brightness == 50
+    assert light_actuator.light_on is True
+    assert light_actuator.brightness == 50
 
-def test_toggle_light_on_to_off():
+def test_toggle_light_on_to_off(light_actuator):
     """Test toggling light from on to off."""
-    LIGHT_ACTUATOR.light_on = True
-    LIGHT_ACTUATOR.brightness = 50
+    light_actuator.light_on = True
+    light_actuator.brightness = 50
     
-    result = LIGHT_ACTUATOR.process_command_action("toggle", {})
+    result = light_actuator.process_command_action("toggle", {})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.light_on is False
+    assert light_actuator.light_on is False
 
-def test_set_brightness_clamping_high():
+def test_set_brightness_clamping_high(light_actuator):
     """Test that brightness is clamped to 100."""
-    result = LIGHT_ACTUATOR.process_command_action("set_brightness", {"value": 150})
+    result = light_actuator.process_command_action("set_brightness", {"value": 150})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.brightness == 100
+    assert light_actuator.brightness == 100
 
-def test_set_brightness_clamping_low():
+def test_set_brightness_clamping_low(light_actuator):
     """Test that brightness is clamped to 0."""
-    result = LIGHT_ACTUATOR.process_command_action("set_brightness", {"value": -10})
+    result = light_actuator.process_command_action("set_brightness", {"value": -10})
     assert result["ack"] is True
-    assert LIGHT_ACTUATOR.brightness == 0
+    assert light_actuator.brightness == 0
 
-def test_set_brightness_invalid_type():
+def test_set_brightness_invalid_type(light_actuator):
     """Test that invalid brightness type raises TypeError."""
     with pytest.raises(TypeError):
-        LIGHT_ACTUATOR.process_command_action("set_brightness", {"value": "not-a-number"})
+        light_actuator.process_command_action("set_brightness", {"value": "not-a-number"})
 
-def test_invalid_action():
+def test_invalid_action(light_actuator):
     """Test that invalid action raises NotImplementedError."""
     with pytest.raises(NotImplementedError):
-        LIGHT_ACTUATOR.process_command_action("invalid_action", {})
+        light_actuator.process_command_action("invalid_action", {})
 
-def test_handle_function():
+def test_handle_function(light_actuator):
     """Test the handle wrapper function."""
-    LIGHT_ACTUATOR.light_on = False
-    LIGHT_ACTUATOR.brightness = 0
+    light_actuator.light_on = False
+    light_actuator.brightness = 0
     
     cmd = {"cmd": "light.set", "payload": {"on": True}}
-    result = LIGHT_ACTUATOR.handle(cmd)
+    result = light_actuator.handle(cmd)
     assert result["ack"] is True
     assert result["state"]["on"] is True
 
-def test_handle_with_brightness():
+def test_handle_with_brightness(light_actuator):
     """Test handle function with brightness."""
     cmd = {"cmd": "light.set", "payload": {"brightness": 60}}
-    result = LIGHT_ACTUATOR.handle(cmd)
+    result = light_actuator.handle(cmd)
     assert result["ack"] is True
     assert result["state"]["brightness"] == 60
 
-def test_handle_with_on_field():
+def test_handle_with_on_field(light_actuator):
     """Test handle function with 'on' field in payload."""
     cmd = {"cmd": "light.set", "payload": {"on": True}}
-    result = LIGHT_ACTUATOR.handle(cmd)
+    result = light_actuator.handle(cmd)
     assert result["ack"] is True
     assert result["state"]["on"] is True
 
-def test_handle_with_brightness_field():
+def test_handle_with_brightness_field(light_actuator):
     """Test handle function with direct brightness field."""
     cmd = {"cmd": "light.set", "payload": {"brightness": 80}}
-    result = LIGHT_ACTUATOR.handle(cmd)
+    result = light_actuator.handle(cmd)
     assert result["ack"] is True
     assert result["state"]["brightness"] == 80
 
-def test_handle_missing_fields():
+def test_handle_missing_fields(light_actuator):
     """Test handle function with missing required fields."""
     with pytest.raises(KeyError):
-        LIGHT_ACTUATOR.handle({"cmd": "light.set", "payload": {}})
+        light_actuator.handle({"cmd": "light.set", "payload": {}})

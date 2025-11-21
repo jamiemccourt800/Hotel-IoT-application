@@ -1,11 +1,16 @@
 FROM python:3.12-slim
 WORKDIR /app
-RUN pip install --no-cache-dir paho-mqtt
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code and shared libraries
 COPY . /app
 
-# Environment variables
+# Set environment variables with defaults
 ENV HOTEL_ID=hotel_01 ROOM=101 SENSOR=light-actuator \
-    BROKER=mqtt-broker BROKER_PORT=1883 QOS=1 KEEPALIVE=60 \
-    INITIAL_ON=true INITIAL_BRIGHTNESS=100
+    MQTT_BROKER=mosquitto MQTT_PORT=1883 QOS=1 KEEPALIVE=60 \
+    DEFAULT_BRIGHTNESS=75.0 CONTROL_INTERVAL=5.0
 
-CMD ["python", "logic/main.py"]
+CMD ["python", "app/main.py"]

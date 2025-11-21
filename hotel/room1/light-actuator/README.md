@@ -1,65 +1,64 @@
-# Light Actuator — Room IoT Device
+# Light Actuator
 
-This service simulates a controllable light actuator. It receives MQTT commands to toggle on/off or adjust brightness and publishes its current state.
+Modular light control actuator for hotel room automation.
 
-## Overview
-**Listens:** `commands/<hotel_id>/<room>/<sensor>`  
-**Publishes:** `sensors/<hotel_id>/<room>/<sensor>` with `measurement: light-state`
+## Features
 
-### Example state
+- Light on/off control
+- Brightness control (0-100)
+- Toggle functionality
+- State publishing to MQTT
+- Command acknowledgments
+
+## Environment Variables
+
+- `HOTEL_ID`: Hotel identifier (default: "hotel_01")
+- `ROOM`: Room number (default: 101)
+- `SENSOR`: Sensor identifier (default: "light-actuator")
+- `BROKER`: MQTT broker host
+- `BROKER_PORT`: MQTT broker port (default: 1883)
+
+## MQTT Topics
+
+### Subscribed
+- Commands: `{hotel_id}/{room}/light-actuator/cmd`
+
+### Published
+- State: `{hotel_id}/{room}/light-actuator/state`
+- Acknowledgments: `{hotel_id}/{room}/light-actuator/ack`
+
+## Command Format
+
 ```json
 {
-  "measurement": "light-state",
-  "tags": {"hotel_id": "hotel_01", "room": "101", "sensor": "light-actuator"},
-  "fields": {"state": "on", "brightness": 42},
-  "timestamp": 1695800110456
+  "action": "on",
+  "payload": {
+    "brightness": 75
+  }
 }
 ```
 
-## Configuration
-| Variable | Default | Description |
-|-----------|----------|-------------|
-| MQTT_BROKER | mosquitto | MQTT broker host |
-| MQTT_PORT | 1883 | MQTT port |
-| HOTEL_ID | hotel_01 | Hotel ID |
-| ROOM | 101 | Room number |
-| ACTUATOR_ID | light-actuator | Device ID |
-| DEFAULT_BRIGHTNESS | 50 | Default brightness value |
+### Supported Actions
 
-## Run
-```bash
-docker compose -f hotel/docker-compose.hotel1.yml up -d light-actuator
-```
+- `on`: Turn light on (optionally with brightness)
+- `off`: Turn light off
+- `toggle`: Toggle light state
+- `set_brightness`: Set brightness level (0-100)
 
-## Testing / Verify
+## State Message Format
 
-### 1) Send commands via FastAPI (Command service)
-Use the **Command FastAPI service** to control the actuator and verify behavior.
-
-- Open API docs:
-  ```
-  http://<command-host>:<port>/docs
-  ```
-- Use `POST /actuator/light` with:
-  ```json
-  {
+```json
+{
+  "measurement": "light-state",
+  "tags": {
     "hotel_id": "hotel_01",
-    "room": "101",
-    "sensor": "light-actuator",
-    "state": "on",
-    "brightness": 42
-  }
-  ```
-
-**Or via curl:**
-```bash
-CMD_BASE=http://localhost:8000
-curl -X POST "$CMD_BASE/actuator/light" -H "Content-Type: application/json"   -d '{"hotel_id":"hotel_01","room":"101","sensor":"light-actuator","state":"on","brightness":42}'
+    "room": 101,
+    "sensor": "light-actuator"
+  },
+  "fields": {
+    "state_on": 1,
+    "state_brightness": 75
+  },
+  "timestamp": 1700000000000
+}
 ```
-
-### 2) Watch actuator & MQTT logs
-```bash
-docker compose -f hotel/docker-compose.hotel1.yml logs -f light-actuator
-docker compose -f hotel/docker-compose.hotel1.yml logs -f mosquitto
-```
-Confirm you see `light-state` messages with the new state and brightness.
