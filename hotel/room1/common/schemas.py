@@ -10,7 +10,7 @@ from typing import Dict, Any, Union
 class MessageTags:
     """Standard tags for all messages"""
     hotel_id: str
-    room: str  
+    room: int  
     sensor: str
 
 @dataclass

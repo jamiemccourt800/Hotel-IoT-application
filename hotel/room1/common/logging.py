@@ -11,7 +11,7 @@ class HotelLogger:
     def __init__(self, service_name: str, hotel_id: str = "unknown", room: str = "unknown", sensor: str = "unknown"):
         self.service_name = service_name
         self.hotel_id = hotel_id
-        self.room = room  
+        self.room = str(room)  # Convert room to string for logging display
         self.sensor = sensor
         
     def log(self, level: str, event: str, msg: str, **fields):

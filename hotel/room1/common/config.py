@@ -28,7 +28,7 @@ class MQTTConfig:
 class DeviceConfig:
     """Device identification configuration"""
     hotel_id: str = "hotel_01"
-    room: str = "101" 
+    room: int = 101 
     sensor: str = "device"
     
     @classmethod
@@ -36,7 +36,7 @@ class DeviceConfig:
         """Create device config from environment variables"""
         return cls(
             hotel_id=os.getenv("HOTEL_ID", "hotel_01"),
-            room=os.getenv("ROOM", "101"),
+            room=int(os.getenv("ROOM", "101")),  # Convert to int to match schema
             sensor=os.getenv("SENSOR", default_sensor)
         )
 

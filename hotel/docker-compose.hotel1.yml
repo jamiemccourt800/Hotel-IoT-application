@@ -33,14 +33,31 @@ services:
       HOTEL_ID: hotel_01
       ROOM: 101
       SENSOR: temperature-sensor
-      BROKER: mosquitto
-      BROKER_PORT: 1883
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
       TARGET_TEMP: 23.5
-      MODE: random
       INTERVAL: 1.0
       SPEED: 1.0
     volumes:
       - ./room1/temperature-sensor/.data:/app/.data:ro
+    networks:
+      - hotel1
+      - iot-net
+
+  temperature-actuator:
+    build:
+      context: ./room1/temperature-actuator
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: temperature-actuator
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      DEFAULT_TARGET: 22.0
+      CONTROL_INTERVAL: 5.0
+      DEADBAND: 0.5
+    depends_on:
+      - mosquitto
     networks:
       - hotel1
       - iot-net
