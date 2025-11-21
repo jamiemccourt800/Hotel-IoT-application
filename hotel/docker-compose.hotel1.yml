@@ -81,6 +81,44 @@ services:
       - hotel1
       - iot-net
 
+  humidity-sensor:
+    build:
+      context: ./room1
+      dockerfile: humidity-sensor/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: humidity-sensor
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      TARGET_HUMIDITY: 50.0
+      INTERVAL: 1.0
+      SPEED: 1.0
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  humidity-actuator:
+    build:
+      context: ./room1
+      dockerfile: humidity-actuator/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: humidity-actuator
+      MQTT_BROKER: mosquitto
+      MQTT_PORT: 1883
+      DEFAULT_TARGET: 50.0
+      CONTROL_INTERVAL: 5.0
+      DEADBAND: 2.0
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
   alert-agent:
     build:
       context: ./room1/alert-agent
