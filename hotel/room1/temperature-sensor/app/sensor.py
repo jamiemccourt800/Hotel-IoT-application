@@ -100,6 +100,11 @@ class TemperatureSensor:
                 self.mqtt_client.publish_telemetry(telemetry_topic, message.to_dict())
                 published_count += 1
                 
+                # Log current temperature every 10 readings to avoid log spam
+                if published_count % 10 == 0:
+                    self.logger.info('telemetry', f'current temperature: {temperature}°C', 
+                                   current_temp=temperature, target_temp=self.simulation.target_temperature)
+                
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping sensor')
         finally:

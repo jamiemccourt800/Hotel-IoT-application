@@ -56,9 +56,13 @@ class TemperatureActuator:
         control_thread.daemon = True
         control_thread.start()
         
-        # Keep running
+        # Start network loop in background
+        client.loop_start()
+        
+        # Keep running until interrupted
         try:
-            client.loop_forever()
+            while True:
+                time.sleep(1)
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping actuator')
         finally:

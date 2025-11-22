@@ -39,6 +39,11 @@ class LightSensor:
         base_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/{self.device_config.sensor}"
         telemetry_topic = f"{base_topic}/telemetry"
         status_topic = f"{base_topic}/status"
+        target_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/light-control"
+        
+        # Subscribe to target brightness updates (like temp/humidity do)
+        client.subscribe(target_topic, qos=self.mqtt_config.qos)
+        client.on_message = self._on_target_update
         
         # Set up Last Will Testament for offline detection
         lwt_payload = {
@@ -94,6 +99,11 @@ class LightSensor:
                 self.mqtt_client.publish_telemetry(telemetry_topic, message.to_dict())
                 published_count += 1
                 
+                # Log current brightness every 10 readings to avoid log spam
+                if published_count % 10 == 0:
+                    self.logger.info('telemetry', f'current brightness: {brightness}%', 
+                                   current_brightness=brightness)
+                
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping sensor')
         finally:
@@ -101,3 +111,16 @@ class LightSensor:
             client.disconnect()
             self.logger.info('shutdown', 'sensor disconnected cleanly', 
                            published_count=published_count)
+            
+    def _on_target_update(self, client, userdata, msg):
+        """Handle target brightness updates from light actuator"""
+        try:
+            data = json.loads(msg.payload.decode())
+            if "target_brightness" in data:
+                target = float(data["target_brightness"])
+                self.simulation.set_target_brightness(target)
+                self.logger.info('target-update', f'updated target brightness to {target}%',
+                               target_brightness=target, topic_in=msg.topic)
+        except Exception as e:
+            self.logger.error('target-update', f'failed to process target update: {e}',
+                            error=str(e), topic_in=msg.topic)

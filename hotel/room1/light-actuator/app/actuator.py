@@ -56,9 +56,13 @@ class LightActuator:
         control_thread.daemon = True
         control_thread.start()
         
-        # Keep running
+        # Start network loop in background
+        client.loop_start()
+        
+        # Keep running until interrupted
         try:
-            client.loop_forever()
+            while True:
+                time.sleep(1)
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping actuator')
         finally:
@@ -138,11 +142,19 @@ class LightActuator:
         """Continuous light control based on brightness feedback"""
         base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
         light_status_topic = f"{base_room}/light-status"
+        light_control_topic = f"{base_room}/light-control"
         
         while True:
             try:
                 # Calculate control output
                 control = self.light_controller.calculate_control_output()
+                
+                # Publish target brightness for sensor feedback (matching temp/humidity pattern)
+                target_msg = {
+                    "target_brightness": control.brightness_level,
+                    "timestamp": now_ms()
+                }
+                self.mqtt_client.publish_telemetry(light_control_topic, target_msg)
                 
                 # Publish light status
                 light_msg = {

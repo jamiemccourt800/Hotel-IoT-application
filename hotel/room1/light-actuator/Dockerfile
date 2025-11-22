@@ -2,11 +2,14 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install dependencies
-COPY requirements.txt .
+COPY light-actuator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code and shared libraries
-COPY . /app
+# Copy shared common library
+COPY common /app/common
+
+# Copy application code
+COPY light-actuator /app
 
 # Set environment variables with defaults
 ENV HOTEL_ID=hotel_01 ROOM=101 SENSOR=light-actuator \

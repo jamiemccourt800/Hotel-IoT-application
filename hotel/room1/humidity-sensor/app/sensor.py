@@ -100,6 +100,11 @@ class HumiditySensor:
                 self.mqtt_client.publish_telemetry(telemetry_topic, message.to_dict())
                 published_count += 1
                 
+                # Log current humidity every 10 readings to avoid log spam
+                if published_count % 10 == 0:
+                    self.logger.info('telemetry', f'current humidity: {humidity}%', 
+                                   current_humidity=humidity, target_humidity=self.simulation.target_humidity)
+                
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping sensor')
         finally:

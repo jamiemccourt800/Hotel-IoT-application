@@ -12,13 +12,36 @@ class LightSimulation:
     def __init__(self, config):
         self.config = config
         self.current_brightness = 50  # Start at medium brightness
+        self.target_brightness = None  # Target from actuator (if set)
+    
+    def set_target_brightness(self, target: float):
+        """Update target brightness from light actuator commands"""
+        self.target_brightness = target
         
     def generate_readings(self) -> Iterator[Tuple[int, float]]:
         """Generate light readings using time-of-day simulation (extracted from existing logic)"""
         while True:
-            # Calculate brightness based on time of day
-            brightness = self._simulate_time_of_day()
-            self.current_brightness = brightness
+            # If target brightness is set by actuator, blend it with ambient light
+            # Room lights adjust based on both target and natural light conditions
+            if self.target_brightness is not None:
+                # Get natural ambient light level for time of day
+                ambient = self._simulate_time_of_day()
+                
+                # Target represents desired room brightness
+                # Actual brightness is a blend of ambient + artificial lighting
+                # Move toward target while being influenced by ambient conditions
+                target_adjustment = (self.target_brightness - ambient) * 0.7  # 70% artificial contribution
+                desired = ambient + target_adjustment
+                
+                # Random walk toward desired brightness (simulates light adjustment over time)
+                self.current_brightness += (desired - self.current_brightness) * 0.1
+                self.current_brightness += random.uniform(-2, 2)
+                self.current_brightness = max(0, min(100, round(self.current_brightness, 2)))
+                brightness = self.current_brightness
+            else:
+                # No target set - use pure ambient light (time-of-day pattern)
+                brightness = self._simulate_time_of_day()
+                self.current_brightness = brightness
             
             timestamp = int(time.time() * 1000)
             yield timestamp, brightness
