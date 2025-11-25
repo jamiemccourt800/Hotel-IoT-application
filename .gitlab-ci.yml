@@ -70,7 +70,7 @@ test:
     - python -m pytest -vv tests/unit tests/contract --junitxml=reports/unit_contract.xml --cov=. --cov-report=term-missing --cov-append
 
     # -------- Integration (bring up test stack) ----------
-    - docker ps -q | xargs -r docker rm -f || true
+    - docker compose -p test-int down --remove-orphans || true
     - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
     - echo "Waiting for Kafka inside network..."
     - for i in $(seq 1 20); do docker exec test-int-kafka-1 bash -c 'echo > /dev/tcp/localhost/9092' && break || (echo "Kafka not ready yet..." && sleep 5); done
