@@ -5,21 +5,28 @@ import RoomTile from "../../components/adminroomTile/roomTile";
 import { Link } from "react-router-dom";
 import Logo from "../../components/header/logo";
 import AdminHeader from "../../components/header/adminheader";
+import RoomInfoDrawer from "../../components/adminroomTile/roomInfoDrawer";
 
 const AdminDashboard = () => {
   const [hotels, setHotels] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState("");
+  const [openRoomInfo, setOpenRoomInfo] = useState(false);
 
   useEffect(() => {
     fetchHotels().then(setHotels);
   }, []);
 
   const handleHotelSelect = async (hotelId) => {
-    setSelectedHotel(hotelId);
-    const data = await fetchRoomsByHotel(hotelId);
-    setRooms(data);
+    // setSelectedHotel(hotelId);
+    // const data = await fetchRoomsByHotel(hotelId);
+    // setRooms(data);
+    setSelectedHotel('hotel_01')
+    setRooms([101])
   };
+
+  const getRoomData = async() => {
+  }
 
   return (
     <div>
@@ -44,12 +51,13 @@ const AdminDashboard = () => {
                   room={room}
                   number={room.number}
                   occupied={room.occupied}
-                  hotel={selectedHotel}
+                  roomInfoHandler={() => setOpenRoomInfo(!openRoomInfo)}
                 />
               ))}
             </div>
           </div>
         )}
+        <RoomInfoDrawer openDrawer={openRoomInfo} setOpenDrawer={setOpenRoomInfo}/>
       </div>
     </div>
   );

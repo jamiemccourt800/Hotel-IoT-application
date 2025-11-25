@@ -8,6 +8,8 @@ import ProtectedRoute from './pages/Auth/ProtectedRoute';
 import Unauthorized from './pages/Auth/Unauthorized';
 import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
 import AdminHeader from './components/header/adminheader';
+import { useEffect } from 'react';
+import axiosInstance from './utils/axiosInstance';
 
 function App() {
   const user = { name: "Ibukun", role: "admin" };
@@ -47,7 +49,7 @@ function App() {
           </Route>
         </Routes>
       </div>
-      <ToastContainer />
+      {/* <ToastContainer /> */}
     </BrowserRouter>
   );
 }

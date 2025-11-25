@@ -6,7 +6,7 @@ const Dropdown = ({ hotelList, selectedHotel, onSelect }) => {
       <select
         value={selectedHotel}
         onChange={(e) => onSelect(Number(e.target.value))}
-        className="w-full px-4 py-4 border bg-blue-50 text-blue-900 text-center focus:outline-none focus:ring-2 focus:border-blue-400 transition duration-200"
+        className="w-full px-4 py-4 border bg-gray-900 text-white text-center focus:outline-none focus:ring-2 focus:border-blue-400 transition duration-200"
       >
         <option value="">Select a hotel</option>
         {hotelList.map((hotel) => (

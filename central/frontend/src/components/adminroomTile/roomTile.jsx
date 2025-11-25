@@ -1,12 +1,12 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
-const RoomTile = ({hotel, id, occupied = false, number }) => {
+const RoomTile = ({hotel, id, occupied = false, number, roomInfoHandler }) => {
     const navigate = useNavigate();
 
   return (
     <button
-     onClick={() => navigate(`/admin/hotel_${hotel}/room_${number}`)}
+     onClick={roomInfoHandler}
       key={id}
     //   disabled={occupied}
       className={`p-4 rounded-xl border text-lg font-medium transition
