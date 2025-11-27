@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from pymongo import MongoClient
 import os, hashlib
+from sample_data import load_sample_data
 
 MONGO_USER = os.getenv("MONGO_USER", "admin")
 MONGO_PASS = os.getenv("MONGO_PASS", "1Password")
@@ -23,10 +24,15 @@ class User(BaseModel):
     username: str
     password: str
 
+@app.on_event("startup")
+def startup_event():
+    load_sample_data()
 
 @app.get("/health")
 def health_check():
     return {"status": "ok", "connected to db": db.name, "uri": uri, "databases": db.list_collection_names()}
+
+
 @app.post("/api/signin")
 def sign_in(request: User):
         # Find user by username
@@ -56,7 +62,7 @@ def get_user_room(userid):
         "status": room_info["status"],
     }
 
-@app.post("/api/get_hotels")
+@app.get("/api/get_hotels")
 def get_hotels():
     hotels = db.hotels.find()
     hotel_list = []
