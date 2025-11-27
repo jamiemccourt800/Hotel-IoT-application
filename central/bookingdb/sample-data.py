@@ -8,10 +8,10 @@ import hashlib
 load_dotenv()
 
 MONGO_USER = os.getenv("MONGO_USER")
-MONGO_PASS = os.getenv("MONGO_PASS")
+MONGO_PASS = os.getenv("MONGO_PASS", "1Password")
 MONGO_HOST = os.getenv("MONGO_HOST", 'localhost')
 MONGO_PORT = os.getenv("MONGO_PORT", 27017)
-DB_NAME = os.getenv("MONGO_DB")
+DB_NAME = os.getenv("MONGO_DB", "hotel_db")
 
 time.sleep(5)
 
@@ -34,10 +34,10 @@ db = client[DB_NAME]
 
 # --- Sample Data ---
 rooms_data = [
-    {"number": 101, "hotel_id": "hotel_01", "status": "available"},
-    {"number": 102, "hotel_id": "hotel_01", "status": "booked"},
-    {"number": 201, "hotel_id": "hotel_02", "status": "available"},
-    {"number": 202, "hotel_id": "hotel_02", "status": "booked"},
+    {"number": "101", "hotel_id": "hotel_01", "status": "available"},
+    {"number": "102", "hotel_id": "hotel_01", "status": "booked"},
+    {"number": "201", "hotel_id": "hotel_02", "status": "available"},
+    {"number": "202", "hotel_id": "hotel_02", "status": "booked"},
 ]
 
 bookings_data = [
@@ -56,6 +56,20 @@ bookings_data = [
         "date_out": datetime(2025, 10, 25),
     },
 ]
+
+hotel_data = [
+    {
+        "hotel_id": "hotel_01",
+        "name": "Grand Plaza",
+        "location": "Dublin",
+    },
+    {
+        "hotel_id": "hotel_02",
+        "name": "Sea View Resort",
+        "location": "Cork",
+    }       
+]   
+
 
 # Simple password hashing function (demo only!)
 def hash_password(password: str) -> str:
@@ -100,3 +114,7 @@ if db.bookings.count_documents({}) == 0:
 if db.users.count_documents({}) == 0:
     db.users.insert_many(users_data)
     print("Loaded sample users with roles")
+
+if db.hotels.count_documents({}) == 0:
+    db.hotels.insert_many(hotel_data)
+    print("Loaded sample hotels")
