@@ -8,14 +8,7 @@ workflow:
 
 image: docker:27
 
-services:
-  - name: docker:27-dind
-    command: ["--tls=false", "--mtu=1450"]
-
 variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: "" 
-  DOCKER_DRIVER: overlay2
   DOCKER_BUILDKIT: "1"
   COMPOSE_DOCKER_CLI_BUILD: "1"
 
@@ -44,12 +37,7 @@ build:
 test:
   stage: test
   image: docker:27
-  services:
-    - name: docker:27-dind
-      command: ["--tls=false", "--mtu=1450"]
   variables:
-    DOCKER_HOST: tcp://docker:2375
-    DOCKER_TLS_CERTDIR: ""
     PYTHONPATH: "$CI_PROJECT_DIR"
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
     WAIT_INT_SECS: "60"   # tune if services are slow to boot
@@ -82,7 +70,7 @@ test:
     - python -m pytest -vv tests/unit tests/contract --junitxml=reports/unit_contract.xml --cov=. --cov-report=term-missing --cov-append
 
     # -------- Integration (bring up test stack) ----------
-    - docker ps -q | xargs -r docker rm -f || true
+    - docker compose -p test-int down --remove-orphans || true
     - docker compose -p test-int -f tests/docker-compose.test.central.yml up -d
     - echo "Waiting for Kafka inside network..."
     - for i in $(seq 1 20); do docker exec test-int-kafka-1 bash -c 'echo > /dev/tcp/localhost/9092' && break || (echo "Kafka not ready yet..." && sleep 5); done
