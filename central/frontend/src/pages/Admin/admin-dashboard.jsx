@@ -30,6 +30,12 @@ const AdminDashboard = () => {
 
   return (
     <div>
+      <RoomInfoDrawer
+  hotelId={selectedHotel}
+  roomNumber={rooms[0]?.number}
+  openDrawer={openRoomInfo}
+  setOpenDrawer={setOpenRoomInfo}
+/>
       <div className="p-6 background">
         {/* Dropdown */}
         <Dropdown
@@ -46,18 +52,18 @@ const AdminDashboard = () => {
 
             <div className="grid grid-cols-3 gap-4">
               {rooms.map((room) => (
-                <RoomTile
-                  key={room.id}
-                  room={room}
-                  number={room.number}
-                  occupied={room.occupied}
-                  roomInfoHandler={() => setOpenRoomInfo(!openRoomInfo)}
-                />
-              ))}
-            </div>
+  <RoomTile
+    key={room.id}
+    room={room}
+    number={room.number}
+    occupied={room.occupied}
+    roomInfoHandler={() => setOpenRoomInfo(true)}
+  />
+))}
+
+</div>
           </div>
         )}
-        <RoomInfoDrawer openDrawer={openRoomInfo} setOpenDrawer={setOpenRoomInfo}/>
       </div>
     </div>
   );

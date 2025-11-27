@@ -5,17 +5,14 @@ import axiosInstance from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 import BrightnessSlider from "../components/brightness-slide/brightness-slider";
 
-const LightControl = ({ on = false }) => {
-  const [isLightOn, setIsLightOn] = useState(on);
+const LightControl = ({hotelId, roomId }) => {
+  const [isLightOn, setIsLightOn] = useState(false);
   const [brightness, setBrightness] = useState(50);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch current light status
   const fetchLightStatus = async () => {
     try {
-      const hotelId = process.env.REACT_APP_HOTELID || "hotel_01";
-      const roomId = process.env.REACT_APP_ROOMID || 101;
-
       const response = await axiosInstance.get(
         `/actuator/light/${hotelId}/${roomId}/state`
       );

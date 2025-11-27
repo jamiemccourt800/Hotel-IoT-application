@@ -1,12 +1,11 @@
 from pymongo import MongoClient
-from datetime import datetime, timedelta
+from datetime import datetime
 import time
 from dotenv import load_dotenv
 import os
-
+import hashlib
 
 load_dotenv()
-
 
 MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
@@ -22,7 +21,7 @@ max_retries = 10
 for attempt in range(max_retries):
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)
-        client.server_info() 
+        client.server_info()
         print("Connected to MongoDB")
         break
     except Exception:
@@ -31,34 +30,65 @@ for attempt in range(max_retries):
 else:
     raise Exception("Could not connect to MongoDB after multiple attempts")
 
-
 db = client[DB_NAME]
 
-
+# --- Sample Data ---
 rooms_data = [
-    {"number": 101, "hotel_id": "H001", "status": "available"},
-    {"number": 102, "hotel_id": "H001", "status": "booked"},
-    {"number": 201, "hotel_id": "H002", "status": "available"},
-    {"number": 202, "hotel_id": "H002", "status": "booked"},
+    {"number": 101, "hotel_id": "hotel_01", "status": "available"},
+    {"number": 102, "hotel_id": "hotel_01", "status": "booked"},
+    {"number": 201, "hotel_id": "hotel_02", "status": "available"},
+    {"number": 202, "hotel_id": "hotel_02", "status": "booked"},
 ]
 
 bookings_data = [
     {
         "user_id": "U001",
-        "room_id": "R102",
-        "hotel_id": "H001",
+        "room_id": "101",
+        "hotel_id": "hotel_01",
         "date_in": datetime(2025, 10, 18),
         "date_out": datetime(2025, 10, 20),
     },
     {
         "user_id": "U002",
-        "room_id": "R202",
-        "hotel_id": "H002",
+        "room_id": "101",
+        "hotel_id": "hotel_01",
         "date_in": datetime(2025, 10, 22),
         "date_out": datetime(2025, 10, 25),
     },
 ]
 
+# Simple password hashing function (demo only!)
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+users_data = [
+    {
+        "user_id": "U001",
+        "username": "john_doe",
+        "password_hash": hash_password("1Password"),
+        "role": "customer",
+    },
+    {
+        "user_id": "U002",
+        "username": "jane_smith",
+        "password_hash": hash_password("1Password"),
+        "role": "customer",
+    },
+    {
+        "user_id": "A001",
+        "username": "admin",
+        "password_hash": hash_password("1Password"),
+        "role": "admin",
+    },
+    {
+        "user_id": "A002",
+        "username": "manager1",
+        "password_hash": hash_password("1Password"),
+        "role": "hotel_manager",
+    },
+]
+
+# --- Insert Sample Data ---
 if db.rooms.count_documents({}) == 0:
     db.rooms.insert_many(rooms_data)
     print("Loaded sample rooms")
@@ -66,3 +96,7 @@ if db.rooms.count_documents({}) == 0:
 if db.bookings.count_documents({}) == 0:
     db.bookings.insert_many(bookings_data)
     print("Loaded sample bookings")
+
+if db.users.count_documents({}) == 0:
+    db.users.insert_many(users_data)
+    print("Loaded sample users with roles")

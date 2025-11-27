@@ -6,15 +6,19 @@ const AdminHeader = () => {
   return (
        <div className="header flex flex-row justify-between shadow-[0_0_25px_rgba(0,0,0,0.9)]">
         <Logo user={"Admin"}/>
-        <div className='menu flex flex-row py-3 align-middle'>
-        <div className="text-white rounded-md w-44">
+        <div className="text-white w-52 mx-10">
           <Link
             to="/admin/grafana"
             className="text-center"
            >
             Metrics Dashboard
           </Link>
-        </div>
+          <Link onClick={() => {
+            localStorage.removeItem("user");
+            window.location.href = "/login";
+          }} className="text-center ml-6">
+            Logout
+          </Link>
         </div>
       </div>
   )

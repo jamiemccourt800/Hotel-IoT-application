@@ -39,7 +39,7 @@ const TemperatureSlider = ({ initialValue, onSliderChange, disabled }) => {
   };
 
   return (
-    <Box sx={{ mx: "auto", height: 250 }}>
+    <Box sx={{ mx: "auto", height: 200 }}>
       <Slider
         orientation="vertical"
         aria-label="Temperature"

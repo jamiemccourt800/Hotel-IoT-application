@@ -3,16 +3,13 @@ import TemperatureSlider from "../components/temperature-slider/temp-slider";
 import axiosInstance from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 
-const TemperatureControl = () => {
+const TemperatureControl = (hotelId, roomId) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [temperature, setTemperature] = useState(15);
 
   // Fetch current room temperature
   const fetchTemperature = async () => {
     try {
-      const hotelId = process.env.REACT_APP_HOTELID || "hotel_01";
-      const roomId = process.env.REACT_APP_ROOMID || 101;
-
       const response = await axiosInstance.get(
         `/actuator/temperature/${hotelId}/${roomId}/current`
       );
@@ -49,7 +46,7 @@ const TemperatureControl = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-6 rounded-2xl shadow-xl p-10 max-w-md mx-auto bg-white">
+    <div className="flex flex-col items-center justify-center rounded-2xl shadow-xl p-10 max-w-md mx-auto bg-white">
       <p className="text-gray-600 mb-4">
         Current Temperature: <span className="font-bold">{temperature}°C</span>
       </p>

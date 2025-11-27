@@ -32,14 +32,15 @@ function App() {
         <Routes>
           <Route path='/' element={<GrafanaDashboard/>}/>
           <Route path="/home" element={<Home />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<LoginPage />} />
           <Route path='/unauthorized' element={<Unauthorized/>}/>
           {/* Admin protected parent */}
           <Route
             path="/admin/*"
             element={
               <ProtectedRoute user={user} allowedRoles={["admin"]}>
-                <AdminLayout />
+                <AdminHeader/>
+                <Outlet />
               </ProtectedRoute>
             }
           >
@@ -54,14 +55,5 @@ function App() {
   );
 }
 
-
-const AdminLayout = () => {
-  return (
-    <div>
-      <AdminHeader/>
-      <Outlet />
-    </div>
-  );
-};
 
 export default App;

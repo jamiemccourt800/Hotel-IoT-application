@@ -1,8 +1,4 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-
 const RoomTile = ({hotel, id, occupied = false, number, roomInfoHandler }) => {
-    const navigate = useNavigate();
 
   return (
     <button

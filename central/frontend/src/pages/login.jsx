@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { login } from "../utils/auth"; 
 import { useNavigate } from "react-router-dom";
 
@@ -18,8 +18,17 @@ const LoginPage = () => {
     }
   };
 
+  useEffect(() => {
+    // if user is already logged in, redirect based on role
+    const existingUser = JSON.parse(localStorage.getItem("user"));
+    if (existingUser) {
+      if (existingUser.role === "admin") navigate("/admin/dashboard");
+      else navigate("/home");
+    }
+  }, [])
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-blue-50">
+    <div className="mi flex items-center justify-center">
       <div className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-sm">
         <form className="space-y-5" onSubmit={loginHandler}>
           <div>
