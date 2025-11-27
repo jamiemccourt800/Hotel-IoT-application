@@ -24,6 +24,9 @@ class TemperatureActuator:
         self.mqtt_client = HotelMQTTClient(mqtt_config, "temperature-actuator", device_config)
         self.thermostat = ThermostatController(thermostat_config)
         
+        # External control flag - disables local PID loop when FastAPI commands are used
+        self.external_control_mode = False
+        
     def start(self):
         """Start temperature actuator operations"""
         self.logger.info('startup', 'started',
@@ -74,7 +77,7 @@ class TemperatureActuator:
         try:
             data = json.loads(msg.payload.decode())
             
-            if "/commands/temperature/" in msg.topic:
+            if "commands/temperature/" in msg.topic:
                 # Handle thermostat commands
                 self._process_command(data, msg.topic)
             elif "/temperature-sensor/telemetry" in msg.topic:
@@ -86,16 +89,31 @@ class TemperatureActuator:
                             error=str(e), topic=msg.topic)
             
     def _process_command(self, command: dict, topic: str):
-        """Process thermostat command (set target temperature, mode)"""
+        """Process thermostat command from FastAPI (external control)"""
         fields = command.get("fields", {})
         correlation_id = command.get("correlationId")
         
         try:
+            # Enable external control mode when command received
+            if not self.external_control_mode:
+                self.external_control_mode = True
+                self.logger.info('control-mode', 'switched to external control mode (FastAPI)',
+                               correlation_id=correlation_id)
+            
             if "target_temperature" in fields:
                 target = float(fields["target_temperature"])
                 self.thermostat.set_target_temperature(target)
                 self.logger.info('command-processed', f'set target temperature to {target}°C',
                                target_temp=target, correlation_id=correlation_id)
+                
+                # Directly publish setpoint to sensor (bypass PID loop)
+                base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
+                setpoint_topic = f"{base_room}/thermostat"
+                setpoint_msg = {
+                    "target_temperature": target,
+                    "timestamp": now_ms()
+                }
+                self.mqtt_client.publish_telemetry(setpoint_topic, setpoint_msg)
                                
             if "mode" in fields:
                 mode = fields["mode"]
@@ -124,14 +142,19 @@ class TemperatureActuator:
                             error=str(e), topic=topic)
             
     def _control_loop(self, client):
-        """Continuous HVAC control based on temperature feedback"""
+        """Continuous HVAC control based on temperature feedback (local mode only)"""
         base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
         setpoint_topic = f"{base_room}/thermostat"
         hvac_topic = f"{base_room}/hvac-status"
         
         while True:
             try:
-                # Calculate control output
+                # Skip local control if external commands are being used
+                if self.external_control_mode:
+                    time.sleep(self.thermostat_config.control_interval)
+                    continue
+                
+                # Calculate control output (local PID control)
                 control = self.thermostat.calculate_control_output()
                 
                 # Publish setpoint update for temperature sensor
@@ -153,7 +176,8 @@ class TemperatureActuator:
                         "mode": control.mode.value,
                         "power_level": control.power_level,
                         "target_temperature": control.target_temperature,
-                        "current_temperature": control.current_temperature
+                        "current_temperature": control.current_temperature,
+                        "control_mode": "local"
                     },
                     "timestamp": now_ms()
                 }

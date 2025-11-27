@@ -24,6 +24,9 @@ class HumidityActuator:
         self.mqtt_client = HotelMQTTClient(mqtt_config, "humidity-actuator", device_config)
         self.humidifier = HumidifierController(humidifier_config)
         
+        # External control flag - disables local deadband control when FastAPI commands are used
+        self.external_control_mode = False
+        
     def start(self):
         """Start humidity actuator operations"""
         self.logger.info('startup', 'started',
@@ -74,7 +77,7 @@ class HumidityActuator:
         try:
             data = json.loads(msg.payload.decode())
             
-            if "/commands/humidity/" in msg.topic:
+            if "commands/humidity/" in msg.topic:
                 # Handle humidifier commands
                 self._process_command(data, msg.topic)
             elif "/humidity-sensor/telemetry" in msg.topic:
@@ -86,16 +89,31 @@ class HumidityActuator:
                             error=str(e), topic=msg.topic)
             
     def _process_command(self, command: dict, topic: str):
-        """Process humidifier command (set target humidity, mode)"""
+        """Process humidifier command from FastAPI (external control)"""
         fields = command.get("fields", {})
         correlation_id = command.get("correlationId")
         
         try:
+            # Enable external control mode when command received
+            if not self.external_control_mode:
+                self.external_control_mode = True
+                self.logger.info('control-mode', 'switched to external control mode (FastAPI)',
+                               correlation_id=correlation_id)
+            
             if "target_humidity" in fields:
                 target = float(fields["target_humidity"])
                 self.humidifier.set_target_humidity(target)
                 self.logger.info('command-processed', f'set target humidity to {target}%',
                                target_humidity=target, correlation_id=correlation_id)
+                
+                # Directly publish setpoint to sensor (bypass deadband control)
+                base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
+                setpoint_topic = f"{base_room}/humidifier"
+                setpoint_msg = {
+                    "target_humidity": target,
+                    "timestamp": now_ms()
+                }
+                self.mqtt_client.publish_telemetry(setpoint_topic, setpoint_msg)
                                
             if "mode" in fields:
                 mode = fields["mode"]
@@ -124,14 +142,19 @@ class HumidityActuator:
                             error=str(e), topic=topic)
             
     def _control_loop(self, client):
-        """Continuous humidifier control based on humidity feedback"""
+        """Continuous humidifier control based on humidity feedback (local mode only)"""
         base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
         setpoint_topic = f"{base_room}/humidifier"
         humidifier_topic = f"{base_room}/humidifier-status"
         
         while True:
             try:
-                # Calculate control output
+                # Skip local control if external commands are being used
+                if self.external_control_mode:
+                    time.sleep(self.humidifier_config.control_interval)
+                    continue
+                
+                # Calculate control output (local deadband control)
                 control = self.humidifier.calculate_control_output()
                 
                 # Publish setpoint update for humidity sensor

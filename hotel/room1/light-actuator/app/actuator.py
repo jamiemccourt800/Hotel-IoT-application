@@ -24,6 +24,9 @@ class LightActuator:
         self.mqtt_client = HotelMQTTClient(mqtt_config, "light-actuator", device_config)
         self.light_controller = LightController(light_controller_config)
         
+        # External control flag - disables local adaptive control when FastAPI commands are used
+        self.external_control_mode = False
+        
     def start(self):
         """Start light actuator operations"""
         self.logger.info('startup', 'started',
@@ -74,7 +77,7 @@ class LightActuator:
         try:
             data = json.loads(msg.payload.decode())
             
-            if "/commands/light/" in msg.topic:
+            if "commands/light/" in msg.topic:
                 # Handle light commands
                 self._process_command(data, msg.topic)
             elif "/light-sensor/telemetry" in msg.topic:
@@ -86,16 +89,31 @@ class LightActuator:
                             error=str(e), topic=msg.topic)
             
     def _process_command(self, command: dict, topic: str):
-        """Process light command (set brightness, mode, on/off)"""
+        """Process light command from FastAPI (external control)"""
         fields = command.get("fields", {})
         correlation_id = command.get("correlationId")
         
         try:
+            # Enable external control mode when command received
+            if not self.external_control_mode:
+                self.external_control_mode = True
+                self.logger.info('control-mode', 'switched to external control mode (FastAPI)',
+                               correlation_id=correlation_id)
+            
             if "brightness" in fields:
                 brightness = float(fields["brightness"])
                 self.light_controller.set_brightness(brightness)
                 self.logger.info('command-processed', f'set brightness to {brightness}%',
                                brightness=brightness, correlation_id=correlation_id)
+                
+                # Directly publish setpoint to sensor (bypass adaptive control)
+                base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
+                light_control_topic = f"{base_room}/light-control"
+                control_msg = {
+                    "target_brightness": brightness,
+                    "timestamp": now_ms()
+                }
+                self.mqtt_client.publish_telemetry(light_control_topic, control_msg)
                                
             if "mode" in fields:
                 mode = fields["mode"]
@@ -139,14 +157,19 @@ class LightActuator:
                             error=str(e), topic=topic)
             
     def _control_loop(self, client):
-        """Continuous light control based on brightness feedback"""
+        """Continuous light control based on brightness feedback (local mode only)"""
         base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
         light_status_topic = f"{base_room}/light-status"
         light_control_topic = f"{base_room}/light-control"
         
         while True:
             try:
-                # Calculate control output
+                # Skip local control if external commands are being used
+                if self.external_control_mode:
+                    time.sleep(self.light_controller_config.control_interval)
+                    continue
+                
+                # Calculate control output (local adaptive control)
                 control = self.light_controller.calculate_control_output()
                 
                 # Publish target brightness for sensor feedback (matching temp/humidity pattern)
