@@ -24,14 +24,14 @@ class TestExternalControl:
                     'payload': json.loads(msg.payload.decode())
                 })
         
-        # Subscribe to ACK topic
-        client = mqtt.Client()
+        # Subscribe to temperature actuator ACK topic
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
-        client.subscribe("hotel_01/101/+/ack")
+        client.subscribe("hotel_01/101/temperature-actuator/ack")
         client.loop_start()
         
-        # Send temperature command
+        # Send temperature command directly to actuator (not through FastAPI/Kafka)
         correlation_id = str(uuid.uuid4())
         command = {
             "fields": {
@@ -40,7 +40,8 @@ class TestExternalControl:
             "correlationId": correlation_id
         }
         
-        client.publish("commands/temperature/hotel_01/101/thermostat", 
+        # Publish to the topic the temperature actuator subscribes to
+        client.publish("hotel_01/101/temperature-actuator/cmd", 
                       json.dumps(command), qos=1)
         
         # Wait for ACK
@@ -61,7 +62,7 @@ class TestExternalControl:
     def test_humidity_command_activates_external_mode(self, e2e_config):
         """Verify humidity command activates external control mode"""
         # Send humidity command
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         
         correlation_id = str(uuid.uuid4())
@@ -90,7 +91,7 @@ class TestExternalControl:
             if '/ack' in msg.topic:
                 ack_messages.append(json.loads(msg.payload.decode()))
         
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         client.subscribe("hotel_01/101/+/ack")
@@ -120,7 +121,7 @@ class TestExternalControl:
     
     def test_command_without_correlation_id_still_processed(self, e2e_config):
         """Verify commands without correlationId are still processed"""
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         
         # Send command without correlationId
@@ -141,7 +142,7 @@ class TestExternalControl:
     
     def test_multiple_commands_sequential(self, e2e_config):
         """Test sending multiple commands in sequence"""
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         
         # Send temperature command

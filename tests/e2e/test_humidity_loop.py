@@ -27,9 +27,9 @@ class TestHumidityLoop:
             except json.JSONDecodeError:
                 pass
         
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
-        client.connect(e2e_config['mqtt_host'], e2e_config['mqtt_port'])
+        client.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         client.subscribe('hotel_01/101/humidity/telemetry')
         client.loop_start()
         
@@ -46,20 +46,22 @@ class TestHumidityLoop:
         # Verify message structure
         msg = received_messages[0]
         assert msg['topic'] == 'hotel_01/101/humidity/telemetry'
-        assert 'value' in msg['payload']
+        assert 'fields' in msg['payload']
+        assert 'humidityPercent' in msg['payload']['fields']
+        assert 0 <= msg['payload']['fields']['humidityPercent'] <= 100, "Humidity should be 0-100%"
         assert 'timestamp' in msg['payload']
-        assert 0 <= msg['payload']['value'] <= 100, "Humidity should be 0-100%"
 
     def test_actuator_subscribes_to_sensor_readings(self, e2e_config):
         """Verify humidity actuator receives sensor telemetry"""
         # Publish mock sensor reading
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         
         test_payload = {
-            'value': 45.5,
-            'timestamp': time.time(),
-            'sensor_id': 'humidity_sensor_test'
+            'measurement': 'humidity',
+            'fields': {'humidityPercent': 45.5},
+            'tags': {'hotel_id': 'hotel_01', 'room': 101, 'sensor': 'humidity'},
+            'timestamp': int(time.time() * 1000)
         }
         
         client.publish(
@@ -88,9 +90,9 @@ class TestHumidityLoop:
             except json.JSONDecodeError:
                 pass
         
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
-        client.connect(e2e_config['mqtt_host'], e2e_config['mqtt_port'])
+        client.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         client.subscribe('hotel_01/101/humidity_actuator')
         client.loop_start()
         
@@ -120,14 +122,14 @@ class TestHumidityLoop:
                 pass
         
         # Subscribe to actuator setpoints
-        subscriber = mqtt.Client()
+        subscriber = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         subscriber.on_message = on_message
         subscriber.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         subscriber.subscribe('hotel_01/101/humidity_actuator')
         subscriber.loop_start()
         
         # Publish sensor readings that should trigger setpoint adjustments
-        publisher = mqtt.Client()
+        publisher = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         publisher.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         
         # Publish low humidity reading (should increase setpoint)

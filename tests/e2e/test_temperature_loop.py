@@ -23,7 +23,7 @@ class TestTemperatureLoop:
             })
         
         # Subscribe to temperature sensor telemetry topic
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         client.subscribe("hotel_01/101/temperature-sensor/telemetry")
@@ -44,13 +44,13 @@ class TestTemperatureLoop:
         assert msg['measurement'] == 'temperature'
         assert 'temperatureC' in msg['fields']
         assert msg['tags']['hotel_id'] == 'hotel_01'
-        assert msg['tags']['room'] == '101'
+        assert msg['tags']['room'] == 101
         assert msg['tags']['sensor'] == 'temperature-sensor'
     
     def test_actuator_subscribes_to_sensor_readings(self, e2e_config):
         """Verify actuator subscribes to sensor topic and receives readings"""
         # Publish a simulated sensor reading
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         
         sensor_reading = {
@@ -83,9 +83,9 @@ class TestTemperatureLoop:
             received_setpoints.append(json.loads(msg.payload.decode()))
         
         # Subscribe to thermostat setpoint topic
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
-        client.connect(e2e_config["mqtt_host"], e2e_config["mqtt_port"], 60)
+        client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         client.subscribe("hotel_01/101/thermostat")
         client.loop_start()
         
@@ -112,7 +112,7 @@ class TestTemperatureLoop:
                 temperature_readings.append(data['fields']['temperatureC'])
         
         # Monitor temperature sensor for several readings
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
         client.connect(e2e_config["mqtt_broker"], e2e_config["mqtt_port"], 60)
         client.subscribe("hotel_01/101/temperature-sensor/telemetry")

@@ -27,7 +27,7 @@ class TestLightLoop:
             except json.JSONDecodeError:
                 pass
         
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.on_message = on_message
         client.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         client.subscribe('hotel_01/101/light/telemetry')
@@ -46,13 +46,14 @@ class TestLightLoop:
         # Verify message structure
         msg = received_messages[0]
         assert msg['topic'] == 'hotel_01/101/light/telemetry'
-        assert 'state' in msg['payload']
-        assert msg['payload']['state'] in ['on', 'off']
+        assert 'fields' in msg['payload']
+        assert 'brightness' in msg['payload']['fields']
+        assert 0 <= msg['payload']['fields']['brightness'] <= 100, "Brightness should be 0-100"
 
     def test_actuator_receives_brightness_commands(self, e2e_config):
         """Verify light actuator receives and processes brightness commands"""
         # Publish brightness command
-        client = mqtt.Client()
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         client.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         
         test_command = {
@@ -88,14 +89,14 @@ class TestLightLoop:
                 pass
         
         # Subscribe to ACK topic
-        subscriber = mqtt.Client()
+        subscriber = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         subscriber.on_message = on_message
         subscriber.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         subscriber.subscribe('hotel_01/101/light_actuator/ack')
         subscriber.loop_start()
         
         # Publish command
-        publisher = mqtt.Client()
+        publisher = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         publisher.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         
         test_command = {
@@ -136,28 +137,38 @@ class TestLightLoop:
                 pass
         
         # Subscribe to actuator brightness updates
-        subscriber = mqtt.Client()
+        subscriber = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         subscriber.on_message = on_message
         subscriber.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         subscriber.subscribe('hotel_01/101/light_actuator')
         subscriber.loop_start()
         
         # Publish sensor state changes
-        publisher = mqtt.Client()
+        publisher = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         publisher.connect(e2e_config['mqtt_broker'], e2e_config['mqtt_port'])
         
-        # Light turns on
+        # Light brightness increases
         publisher.publish(
             'hotel_01/101/light/telemetry',
-            json.dumps({'state': 'on', 'timestamp': time.time()}),
+            json.dumps({
+                'measurement': 'light-state',
+                'fields': {'brightness': 80.0},
+                'tags': {'hotel_id': 'hotel_01', 'room': 101, 'sensor': 'light'},
+                'timestamp': int(time.time() * 1000)
+            }),
             qos=1
         )
         time.sleep(2)
         
-        # Light turns off
+        # Light brightness decreases
         publisher.publish(
             'hotel_01/101/light/telemetry',
-            json.dumps({'state': 'off', 'timestamp': time.time()}),
+            json.dumps({
+                'measurement': 'light-state',
+                'fields': {'brightness': 20.0},
+                'tags': {'hotel_id': 'hotel_01', 'room': 101, 'sensor': 'light'},
+                'timestamp': int(time.time() * 1000)
+            }),
             qos=1
         )
         time.sleep(2)
