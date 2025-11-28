@@ -27,7 +27,7 @@ services:
   #    - hotel1
 
   temperature-sensor:
-    image: nfinnegan2023/hotel-temperature-sensor:latest
+    image: dkitdevops/hotel-temperature-sensor:latest
     environment:
       HOTEL_ID: hotel_01
       ROOM: 101
@@ -45,7 +45,7 @@ services:
       - iot-net
 
   light-actuator:
-    image: nfinnegan2023/hotel-light-actuator:latest
+    image: dkitdevops/hotel-light-actuator:latest
     environment:
       HOTEL_ID: hotel_01
       ROOM: 101
@@ -63,7 +63,7 @@ services:
       - iot-net
 
   alert-agent:
-    image: nfinnegan2023/hotel-alert-agent:latest
+    image: dkitdevops/hotel-alert-agent:latest
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
@@ -81,7 +81,7 @@ services:
       - iot-net
 
   mqtt-to-kafka:
-    image: nfinnegan2023/hotel-mqtt-to-kafka:latest
+    image: dkitdevops/hotel-mqtt-to-kafka:latest
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883
@@ -98,7 +98,7 @@ services:
       - iot-net
 
   kafka-to-mqtt:
-    image: nfinnegan2023/hotel-kafka-to-mqtt:latest
+    image: dkitdevops/hotel-kafka-to-mqtt:latest
     command: ["python", "kafka_to_mqtt.py"]
     environment:
       KAFKA_BROKER: kafka:9092
