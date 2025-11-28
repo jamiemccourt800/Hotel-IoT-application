@@ -39,8 +39,9 @@ class TemperatureActuator:
         # Set up MQTT topics
         base_room = f"{self.device_config.hotel_id}/{self.device_config.room}"
         
-        # Subscribe to thermostat commands from central system
-        cmd_topic = f"commands/temperature/{base_room}/{self.device_config.sensor}"
+        # Subscribe to thermostat commands from Kafka-to-MQTT bridge
+        # Bridge converts: actuators.hotel_01.101.temperature-actuator.cmd -> hotel_01/101/temperature-actuator/cmd
+        cmd_topic = f"{base_room}/temperature-actuator/cmd"
         client.subscribe(cmd_topic, qos=self.mqtt_config.qos)
         
         # Subscribe to temperature sensor readings for feedback control
@@ -77,8 +78,8 @@ class TemperatureActuator:
         try:
             data = json.loads(msg.payload.decode())
             
-            if "commands/temperature/" in msg.topic:
-                # Handle thermostat commands
+            if "/temperature-actuator/cmd" in msg.topic:
+                # Handle thermostat commands from FastAPI
                 self._process_command(data, msg.topic)
             elif "/temperature-sensor/telemetry" in msg.topic:
                 # Handle temperature sensor readings
@@ -200,16 +201,19 @@ class TemperatureActuator:
                 
     def _send_ack(self, status: str, error: str, correlation_id: str):
         """Send acknowledgment message"""
-        ack_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/{self.device_config.sensor}/ack"
+        # Publish to actuator-specific ACK topic (not thermostat)
+        ack_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/temperature-actuator/ack"
         ack_msg = {
             "measurement": "ack",
             "tags": {
                 "hotel_id": self.device_config.hotel_id,
                 "room": self.device_config.room,
-                "sensor": self.device_config.sensor
+                "actuator": "temperature-actuator"
             },
             "fields": {"status": status, "error": error},
             "timestamp": now_ms(),
             "correlationId": correlation_id
         }
         self.mqtt_client.publish_telemetry(ack_topic, ack_msg)
+        self.logger.info('ack-sent', f'sent acknowledgment: {status}',
+                        status=status, correlation_id=correlation_id, topic=ack_topic)
