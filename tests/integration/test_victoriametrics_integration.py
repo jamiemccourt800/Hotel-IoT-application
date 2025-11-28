@@ -11,6 +11,7 @@ def check_victoria_metrics_available(base_url):
         return False
 
 @pytest.mark.integration
+@pytest.mark.timeout(10)
 def test_write_and_query_metric(integration_settings):
     # Get VictoriaMetrics URL from integration settings
     victoria_metrics_url = integration_settings["victoria_metrics_url"]

@@ -18,6 +18,8 @@ def _make_test_payload():
         }
     }
 
+@pytest.mark.integration
+@pytest.mark.timeout(20)
 def test_mqtt_message_is_forwarded_to_kafka(integration_settings):
     """
     Happy-path integration test.
@@ -31,7 +33,7 @@ def test_mqtt_message_is_forwarded_to_kafka(integration_settings):
     kafka_bootstrap = integration_settings["kafka_bootstrap"]
 
     print(f"Connecting to MQTT at {mqtt_host}:{mqtt_port} ...")
-    client = mqtt.Client()
+    client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.connect(mqtt_host, mqtt_port, 60)
 
     payload = _make_test_payload()

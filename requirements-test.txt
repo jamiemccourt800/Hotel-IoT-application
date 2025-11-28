@@ -1,6 +1,7 @@
 jsonschema
 pytest
 pytest-cov
+pytest-timeout
 jsonschema
 requests
 paho-mqtt

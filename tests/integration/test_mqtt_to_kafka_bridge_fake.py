@@ -1,10 +1,13 @@
 # tests/integration/test_mqtt_to_kafka_bridge_fake.py
+import pytest
 import json
 from types import SimpleNamespace
 
+@pytest.mark.integration
+@pytest.mark.timeout(15)
 def test_mqtt_bridge_happy_path_without_real_kafka(monkeypatch, integration_settings):
     """
-    This test forces the 'message received from Kafka' branch to run
+    This test forces the 'message received from Kafka' branch to run.
     WITHOUT requiring a real Kafka broker.
     We monkeypatch both MQTT and Kafka so the original test code can run.
     """
@@ -45,7 +48,7 @@ def test_mqtt_bridge_happy_path_without_real_kafka(monkeypatch, integration_sett
         def disconnect(self):
             return 0
 
-    monkeypatch.setattr("paho.mqtt.client.Client", lambda: FakeMQTTClient())
+    monkeypatch.setattr("paho.mqtt.client.Client", lambda *args, **kwargs: FakeMQTTClient())
 
     # 3) Now call the REAL integration test — but it will use our fakes
     bridge_mod.test_mqtt_message_is_forwarded_to_kafka(integration_settings)

@@ -1,16 +1,29 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 WORKDIR /app
-COPY requirements.txt .
+
+# Install dependencies
+COPY alert-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app ./app
+
+# Copy shared common library
+COPY common /app/common
+
+# Copy application code
+COPY alert-agent /app
+
+# Set environment variables with defaults
 ENV PYTHONUNBUFFERED=1 \
-	MQTT_BROKER=mosquitto \
-	MQTT_PORT=1883 \
-	MQTT_SUB=sensors/# \
-	MQTT_PUB=sensors \
-	HOTEL_ID=hotel_01 \
-	ROOM=101 \
-	TEMP_HIGH_C=30 \
-	OFFLINE_TIMEOUT_S=120 \
-	DEDUP_WINDOW_S=60
-CMD ["python", "-m", "app.main"]
+    HOTEL_ID=hotel_01 \
+    ROOM=101 \
+    SENSOR=alert-agent \
+    MQTT_BROKER=mosquitto \
+    MQTT_PORT=1883 \
+    QOS=1 \
+    KEEPALIVE=60 \
+    MQTT_SUB=hotel_01/# \
+    MQTT_PUB=alerts \
+    TEMP_HIGH_C=30 \
+    OFFLINE_TIMEOUT_S=120 \
+    DEDUP_WINDOW_S=60
+
+CMD ["python", "app/main.py"]

@@ -3,6 +3,8 @@ import os
 from importlib import reload
 import tests.integration.test_mqtt_to_kafka_bridge as bridge_test
 
+@pytest.mark.integration
+@pytest.mark.timeout(15)
 def test_integration_skips_cleanly_when_kafka_is_down(monkeypatch, request):
     """
     Cover the branch where kafka is unreachable by pointing to a fake host.
