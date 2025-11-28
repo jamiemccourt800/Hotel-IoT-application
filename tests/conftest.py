@@ -14,7 +14,12 @@ import sys, pathlib, importlib.util
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 # allow absolute imports from repo root
-sys.path.append(str(ROOT))  
+sys.path.append(str(ROOT))
+
+# Add hotel/room1 to Python path for sensor/actuator module imports
+HOTEL_ROOM_PATH = ROOT / 'hotel' / 'room1'
+if str(HOTEL_ROOM_PATH) not in sys.path:
+    sys.path.insert(0, str(HOTEL_ROOM_PATH))  
 
 def load_module_from_path(mod_name: str, file_path: pathlib.Path):
     """

@@ -73,14 +73,7 @@ def test_on_message_bad_json_is_ignored_gracefully():
     # Should not raise, should not publish
     assert not client.published
 
-def test_rules_evaluate_with_missing_fields(load_module):
-    rules = load_module("hotel.room1.alert-agent.app.rules")
-    msg = {"measurement": "alert", "fields": {}, "tags": {}}
-    result = rules.evaluate(msg)
-    assert result is None or isinstance(result, dict)
+# NOTE: Removed test_rules_evaluate_* tests - rules.py module was deleted
+# Alert agent now uses consolidated threshold logic in agent.py
+# See tests/unit/hotel/alert_agent/test_threshold_rules.py for new tests
 
-def test_rules_evaluate_with_unexpected_fields(load_module):
-    rules = load_module("hotel.room1.alert-agent.app.rules")
-    msg = {"measurement": "alert", "fields": {"unexpected": 123}, "tags": {}}
-    result = rules.evaluate(msg)
-    assert result is None or isinstance(result, dict)
