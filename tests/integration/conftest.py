@@ -2,6 +2,13 @@ import os
 import pytest
 
 
+def pytest_configure(config):
+    """Register custom markers for integration tests."""
+    config.addinivalue_line(
+        "markers", "integration: integration tests requiring external services (MQTT, Kafka, etc.)"
+    )
+
+
 @pytest.fixture
 def integration_settings():
     """Common settings every integration test can reuse.

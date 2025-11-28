@@ -12,7 +12,8 @@ services:
 
   temperature-sensor:
     build:
-      context: ../hotel/room1/temperature-sensor
+      context: ../hotel/room1
+      dockerfile: temperature-sensor/Dockerfile
     environment:
       HOTEL_ID: hotel_01
       ROOM: 101
@@ -25,13 +26,94 @@ services:
       SPEED: 1.0
     volumes:
       - ../hotel/room1/temperature-sensor/.data:/app/.data:ro
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  temperature-actuator:
+    build:
+      context: ../hotel/room1
+      dockerfile: temperature-actuator/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      ACTUATOR: temperature_actuator
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      QOS: 1
+      KEEPALIVE: 60
+      INITIAL_SETPOINT: 22.0
+      PID_KP: 1.0
+      PID_KI: 0.1
+      PID_KD: 0.05
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  humidity-sensor:
+    build:
+      context: ../hotel/room1
+      dockerfile: humidity-sensor/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: humidity
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      TARGET_HUMIDITY: 50.0
+      MODE: random
+      INTERVAL: 2.0
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  humidity-actuator:
+    build:
+      context: ../hotel/room1
+      dockerfile: humidity-actuator/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      ACTUATOR: humidity_actuator
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      QOS: 1
+      KEEPALIVE: 60
+      INITIAL_SETPOINT: 50.0
+      DEADBAND: 5.0
+    depends_on:
+      - mosquitto
+    networks:
+      - hotel1
+      - iot-net
+
+  light-sensor:
+    build:
+      context: ../hotel/room1
+      dockerfile: light-sensor/Dockerfile
+    environment:
+      HOTEL_ID: hotel_01
+      ROOM: 101
+      SENSOR: light
+      BROKER: mosquitto
+      BROKER_PORT: 1883
+      INTERVAL: 2.0
+    depends_on:
+      - mosquitto
     networks:
       - hotel1
       - iot-net
 
   light-actuator:
     build:
-      context: ../hotel/room1/light-actuator
+      context: ../hotel/room1
+      dockerfile: light-actuator/Dockerfile
     environment:
       HOTEL_ID: hotel_01
       ROOM: 101
@@ -50,7 +132,8 @@ services:
 
   alert-agent:
     build:
-      context: ../hotel/room1/alert-agent
+      context: ../hotel/room1
+      dockerfile: alert-agent/Dockerfile
     environment:
       MQTT_BROKER: mosquitto
       MQTT_PORT: 1883

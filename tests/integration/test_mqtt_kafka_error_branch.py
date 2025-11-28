@@ -2,6 +2,8 @@
 import pytest
 from kafka.errors import NoBrokersAvailable
 
+@pytest.mark.integration
+@pytest.mark.timeout(15)
 def test_bridge_skips_on_nobrokers(monkeypatch, integration_settings):
     """
     Force the bridge test to take the 'skip because Kafka is down' path.

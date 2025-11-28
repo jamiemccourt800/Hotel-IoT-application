@@ -20,8 +20,8 @@ class HotelMQTTClient:
         
     def connect_with_retries(self, max_attempts: int = 30) -> mqtt.Client:
         """Robust MQTT connection with exponential backoff retry logic"""
-        # Create MQTT client compatible with paho-mqtt 1.6.1
-        self.client = mqtt.Client(protocol=mqtt.MQTTv311, clean_session=True)
+        # Create MQTT client compatible with paho-mqtt 2.x
+        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv311, clean_session=True)
         
         attempts = 0
         delay = 2.0
