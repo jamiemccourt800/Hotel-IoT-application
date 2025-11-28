@@ -7,7 +7,7 @@ from types import SimpleNamespace
 @pytest.mark.timeout(15)
 def test_mqtt_bridge_happy_path_without_real_kafka(monkeypatch, integration_settings):
     """
-    This test forces the 'message received from Kafka' branch to run
+    This test forces the 'message received from Kafka' branch to run.
     WITHOUT requiring a real Kafka broker.
     We monkeypatch both MQTT and Kafka so the original test code can run.
     """
