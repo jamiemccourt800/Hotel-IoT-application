@@ -9,6 +9,9 @@ RUN apk add --no-cache python3 make g++
 ENV REACT_APP_HOTELID=hotel_01
 ENV REACT_APP_ROOMID=101
 ENV REACT_APP_COMMAND_SERVICE_URL=/command
+ENV REACT_APP_BOOKING_API_URL=/booking_api
+ENV GRAFANA URL=/grafana
+
 
 ENV PATH=/app/node_modules/.bin:$PATH
 
@@ -22,7 +25,7 @@ COPY . /app
 RUN npm run build
 
 # production stage
-FROM nginx:1.23-alpine
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# FROM nginx:1.23-alpine
+# COPY --from=build /app/build /usr/share/nginx/html
+# EXPOSE 80
+# CMD ["nginx", "-g", "daemon off;"]

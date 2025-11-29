@@ -11,6 +11,25 @@ services:
       iot-net:
         aliases:
           - zookeeper
+  
+  bookingapi:
+    build: ./booking_api
+    container_name: booking_api
+    ports:
+      - "3003:8000"
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB: hotel_db
+      MONGO_USER: admin
+      MONGO_PASS: 1Password
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    networks:
+      - iot-net
+    volumes:
+      - ./booking_api:/app
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -76,6 +95,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ALLOW_EMBEDDING: true
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
@@ -255,11 +275,8 @@ services:
 
   mongodb:
     image: mongo:7.0
-    container_name: my-mongo
+    container_name: booking_db
     restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
     ports:
       - "27017:27017"
     volumes:
@@ -272,14 +289,15 @@ services:
   
   app-frontend:
     build: ./frontend
+    container_name: react-frontend
     ports:
-      - 3001:3000
+      - 3001:80
     volumes:
       - ./frontend:/app
-      - ./frontend/node_modules:/app/node_modules
     environment:
       REACT_APP_HOTELID: hotel_01
       REACT_APP_ROOMID: 101
+    command: ["npm", "start"]
 
 
 volumes:

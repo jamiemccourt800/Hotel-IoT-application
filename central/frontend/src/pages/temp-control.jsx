@@ -1,50 +1,63 @@
 import { useEffect, useState } from "react";
 import TemperatureSlider from "../components/temperature-slider/temp-slider";
-import axiosInstance from "../utils/axiosInstance";
+import {axiosInstance} from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 
-const TemperatureControl = () => {
-  const [updating, setIsUpdating] = useState(false);
-  const [temp, setTemp] = useState(15);
+const TemperatureControl = (hotelId, roomId) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [temperature, setTemperature] = useState(15);
 
-
-  const getTemperature = async () => {
+  // Fetch current room temperature
+  const fetchTemperature = async () => {
     try {
-      const hotel = process.env.REACT_APP_HOTELID || "hotel_01";
-      const room = process.env.REACT_APP_ROOMID || 101;
-      const res = await axiosInstance.get(`/actuator/temperature/${hotel}/${room}/current`);
-      const roundedTemp = Math.round(res.data.temperature * 2) / 2; // round to nearest .5
-      setTemp(roundedTemp);
-    } catch (err) {
+      const response = await axiosInstance.get(
+        `/actuator/temperature/${hotelId}/${roomId}/current`
+      );
+
+      const roundedTemp = Math.round(response.data.temperature * 2) / 2; // round to nearest 0.5
+      setTemperature(roundedTemp);
+    } catch {
       toast.error("Error fetching temperature details for current room");
     }
   };
 
-  const setTemperature = async (value) => {
+  // Update room temperature
+  const updateTemperature = async (value) => {
     setIsUpdating(true);
-    try {
-      const hotel = process.env.REACT_APP_HOTELID || "hotel_01";
-      const room = process.env.REACT_APP_ROOMID || 101;
-      const res = await axiosInstance.post(`/send_command/${hotel}/${room}/temperature/${value}`);
-      setTemp(value); 
-    } catch (error) {
-      toast.error("Oops! There was an issue adjusting the temperature. Try again later!");
-    } finally {
-      setIsUpdating(false);
-    }
+    // try {
+    //   const hotelId = process.env.REACT_APP_HOTELID || "hotel_01";
+    //   const roomId = process.env.REACT_APP_ROOMID || 101;
+
+    //   await axiosInstance.post(
+    //     `/send_command/${hotelId}/${roomId}/temperature/${value}`
+    //   );
+
+    //   setTemperature(value);
+    //   toast.success(`Temperature set to ${value}°C`);
+    // } catch {
+    //   toast.error("Oops! There was an issue adjusting the temperature. Try again later!");
+    // } finally {
+    //   setIsUpdating(false);
+    // }
   };
 
   useEffect(() => {
-    getTemperature();
+    fetchTemperature();
   }, []);
 
   return (
-    <div className="flex flex-row items-center justify-center gap-4">
-        <TemperatureSlider
-          initialValue={temp}
-          onSliderChange={setTemperature}
-          disabled={updating}
-        />
+    <div className="flex flex-col items-center justify-center rounded-2xl shadow-xl p-10 max-w-md mx-auto bg-white">
+      <p className="text-gray-600 mb-4">
+        Current Temperature: <span className="font-bold">{temperature}°C</span>
+      </p>
+      <TemperatureSlider
+        initialValue={temperature}
+        onSliderChange={updateTemperature}
+        disabled={isUpdating}
+      />
+      {isUpdating && (
+        <p className="text-sm text-blue-500 mt-2">Updating temperature...</p>
+      )}
     </div>
   );
 };

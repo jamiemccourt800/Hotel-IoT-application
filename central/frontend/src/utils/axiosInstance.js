@@ -8,4 +8,13 @@ const axiosInstance = axios.create({
     },
 });
 
-export default axiosInstance;
+const bookingApiAxiosInstance = axios.create({
+    // baseURL: process.env.REACT_APP_BOOKING_SERVICE_URL,
+    baseURL: 'http://localhost:8000',
+    timeout: 10000,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+export { axiosInstance, bookingApiAxiosInstance };
