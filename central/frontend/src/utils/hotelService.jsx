@@ -45,8 +45,8 @@ export const fetchHotels = async () => {
 
 export const fetchUserRoom = async(userId) => {
   try{
-    const room = bookingApiAxiosInstance.get(`/api/getroom/${userId}`);
-    console.log("Fetched user room:", room);
+    const room = await bookingApiAxiosInstance.get(`/api/getroom/${userId}`);
+    return room.data
   }catch(error){
     console.error("Error fetching user room from booking service:", error);
     return null;

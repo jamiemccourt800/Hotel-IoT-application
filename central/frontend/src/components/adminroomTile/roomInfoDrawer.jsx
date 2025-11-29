@@ -7,27 +7,16 @@ import LightControl from "../../pages/light-control";
 import TemperatureControl from "../../pages/temp-control";
 import openDoor from "../../assets/open-door.png";
 import closedDoor from "../../assets/closed-door.png";
+import { axiosInstance } from "../../utils/axiosInstance";
 
 export default function RoomInfoDrawer({
-  hotelId = 1,
-  roomNumber = 101,
+  hotelId,
+  roomNumber,
   openDrawer,
   setOpenDrawer,
+  occupancy
 }) {
-  const [roomData, setRoomData] = useState({ occupancy: false });
 
-  useEffect(() => {
-    async function fetchRoomData() {
-      try {
-        const res = await fetch(`/api/hotels/${hotelId}/rooms/${roomNumber}`);
-        const data = await res.json();
-        setRoomData(data);
-      } catch (err) {
-        console.error("Failed to fetch room data", err);
-      }
-    }
-    if (openDrawer) fetchRoomData();
-  }, [hotelId, roomNumber, openDrawer]);
 
   return (
     <SwipeableDrawer
@@ -79,12 +68,12 @@ export default function RoomInfoDrawer({
 
             <Box sx={{ textAlign: "center" }}>
               <img
-                alt={`${roomData?.occupancy ? "occupied" : "unoccupied"} room`}
-                src={roomData?.occupancy ? closedDoor : openDoor}
+                alt={`${occupancy ? "occupied" : "unoccupied"} room`}
+                src={occupancy ? closedDoor : openDoor}
                 style={{ width: 40, height: 40 }}
               />
               <Typography variant="body2">
-                {roomData?.occupancy ? "Occupied" : "Unoccupied"}
+                {occupancy ? "Occupied" : "Unoccupied"}
               </Typography>
             </Box>
           </Box>

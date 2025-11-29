@@ -19,7 +19,7 @@ const LoginPage = () => {
       else navigate("/home");
     } catch (err) {
       toast.error("Login failed. Please check your credentials.");
-      console.log(alert(err.message));
+      console.log(err.message);
     }
   };
 
