@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { login } from "../utils/auth"; 
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 const LoginPage = () => {
   const [username, setUsername] = useState("");
@@ -8,13 +9,17 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   const loginHandler = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); 
     try {
       const user = await login(username, password);
+      localStorage.setItem("user", JSON.stringify(user));
+      setUsername("");
+      setPassword("");
       if (user.role === "admin") navigate("/admin/dashboard");
       else navigate("/home");
     } catch (err) {
-      alert(err.message);
+      toast.error("Login failed. Please check your credentials.");
+      console.log(alert(err.message));
     }
   };
 
@@ -28,7 +33,7 @@ const LoginPage = () => {
   }, [])
 
   return (
-    <div className="mi flex items-center justify-center">
+    <div className="flex items-center justify-center">
       <div className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-sm">
         <form className="space-y-5" onSubmit={loginHandler}>
           <div>

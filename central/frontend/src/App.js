@@ -9,10 +9,14 @@ import Unauthorized from './pages/Auth/Unauthorized';
 import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
 import AdminHeader from './components/header/adminheader';
 import { useEffect } from 'react';
-import axiosInstance from './utils/axiosInstance';
+import { axiosInstance, bookingApiAxiosInstance } from './utils/axiosInstance';
+
+// simple placeholder for unmatched routes
+const NotFound = () => <h2>404 - Page Not Found</h2>;
 
 function App() {
-  const user = { name: "Ibukun", role: "admin" };
+   const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
 
   const checkCommandService = async () => {
     try {
@@ -20,26 +24,40 @@ function App() {
     } catch (error) {
       console.error('Command Service is not reachable:', error);
     }
-  }
+  };
+
+  const checkBookingService = async () => {
+    try {
+      await bookingApiAxiosInstance.get('/health');
+    } catch (error) {
+      console.error('Booking Service is not reachable:', error);
+    }
+  };
 
   useEffect(() => {
-    checkCommandService();
+    const runChecks = async () => {
+      await checkCommandService();
+      await checkBookingService();
+    };
+    runChecks();
   }, []);
 
   return (
-    <BrowserRouter>
-      <div className="App">
+    <div className="App">
+      <BrowserRouter>
         <Routes>
-          <Route path='/' element={<GrafanaDashboard/>}/>
+          {/* Landing route */}
           <Route path="/home" element={<Home />} />
-          <Route path="*" element={<LoginPage />} />
-          <Route path='/unauthorized' element={<Unauthorized/>}/>
+
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
+
           {/* Admin protected parent */}
           <Route
             path="/admin/*"
             element={
               <ProtectedRoute user={user} allowedRoles={["admin"]}>
-                <AdminHeader/>
+                <AdminHeader />
                 <Outlet />
               </ProtectedRoute>
             }
@@ -48,12 +66,13 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="grafana" element={<GrafanaDashboard />} />
           </Route>
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
-      </div>
-      {/* <ToastContainer /> */}
-    </BrowserRouter>
+        {/* <ToastContainer /> */}
+      </BrowserRouter>
+    </div>
   );
 }
-
 
 export default App;

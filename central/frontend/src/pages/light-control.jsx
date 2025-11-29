@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Switch } from "@mui/material";
 import LightBulb from "../components/lightbulb/light-bulb";
-import axiosInstance from "../utils/axiosInstance";
+import {axiosInstance} from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 import BrightnessSlider from "../components/brightness-slide/brightness-slider";
 
@@ -48,32 +48,32 @@ const LightControl = ({hotelId, roomId }) => {
     setIsLightOn(newStatus);
     const lightStatus = newStatus ? "on" : "off";
 
-    try {
-      await axiosInstance.post(
-        `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/${lightStatus}`
-      );
-      toast.success(`Light turned ${lightStatus}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("Error changing light status");
-      setIsLightOn(!newStatus);
-    }
+    // try {
+    //   await axiosInstance.post(
+    //     `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/${lightStatus}`
+    //   );
+    //   toast.success(`Light turned ${lightStatus}`);
+    // } catch (error) {
+    //   console.error(error);
+    //   toast.error("Error changing light status");
+    //   setIsLightOn(!newStatus);
+    // }
   };
 
   // Adjust brightness
   const updateBrightness = async (value) => {
     setIsUpdating(true);
-    try {
-      await axiosInstance.post(
-        `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/brightness/${value}`
-      );
-      setBrightness(value);
-      toast.success(`Brightness set to ${value}%`);
-    } catch {
-      toast.error("Oops! Could not update brightness. Try again.");
-    } finally {
-      setIsUpdating(false);
-    }
+    // try {
+    //   await axiosInstance.post(
+    //     `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/brightness/${value}`
+    //   );
+    //   setBrightness(value);
+    //   toast.success(`Brightness set to ${value}%`);
+    // } catch {
+    //   toast.error("Oops! Could not update brightness. Try again.");
+    // } finally {
+    //   setIsUpdating(false);
+    // }
   };
 
   return (

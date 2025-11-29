@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 const Dropdown = ({ hotelList, selectedHotel, onSelect }) => {
+
   return (
     <div className="relative w-60 mb-6">
       <select
@@ -10,8 +11,8 @@ const Dropdown = ({ hotelList, selectedHotel, onSelect }) => {
       >
         <option value="">Select a hotel</option>
         {hotelList.map((hotel) => (
-          <option key={hotel.id} value={hotel.id}>
-            {hotel.name}
+          <option key={hotel.hotel_id} value={hotel.hotel_id}>
+            {hotel.name} {`(ID: ${hotel.hotel_id})`}
           </option>
         ))}
       </select>

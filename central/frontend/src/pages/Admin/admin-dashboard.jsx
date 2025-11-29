@@ -1,28 +1,28 @@
 import React, { useEffect, useState } from "react";
 import Dropdown from "../../components/Dropdown/Dropdown";
-import { fetchHotels, fetchRoomsByHotel } from "../../utils/hotelService";
 import RoomTile from "../../components/adminroomTile/roomTile";
-import { Link } from "react-router-dom";
-import Logo from "../../components/header/logo";
-import AdminHeader from "../../components/header/adminheader";
 import RoomInfoDrawer from "../../components/adminroomTile/roomInfoDrawer";
+import { fetchHotels } from "../../utils/hotelService";
 
 const AdminDashboard = () => {
   const [hotels, setHotels] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState("");
   const [openRoomInfo, setOpenRoomInfo] = useState(false);
+  
 
   useEffect(() => {
-    fetchHotels().then(setHotels);
+   fetchHotels().then((data) => {
+      setHotels(data);
+   });
   }, []);
 
   const handleHotelSelect = async (hotelId) => {
     // setSelectedHotel(hotelId);
     // const data = await fetchRoomsByHotel(hotelId);
     // setRooms(data);
-    setSelectedHotel('hotel_01')
-    setRooms([101])
+    // setSelectedHotel('hotel_01')
+    // setRooms([101])
   };
 
   const getRoomData = async() => {

@@ -1,3 +1,5 @@
+import { bookingApiAxiosInstance } from "./axiosInstance";
+
 const generateRooms = (count, start = 1) => {
   return Array.from({ length: count }, (_, i) => ({
     id: i + 1,
@@ -32,9 +34,35 @@ const simulateDelay = (ms = 700) =>
 
 
 export const fetchHotels = async () => {
-  await simulateDelay();
-  return hotels.map(({ id, name, location }) => ({ id, name, location }));
+  try {
+    const response = await bookingApiAxiosInstance.get('/api/get_hotels');
+    return response.data.hotels;
+  } catch (error) {
+    console.error("Error fetching hotels from booking service:", error);
+    return [];
+  }
 };
+
+export const fetchUserRoom = async(userId) => {
+  try{
+    const room = bookingApiAxiosInstance.get(`/api/getroom/${userId}`);
+    console.log("Fetched user room:", room);
+  }catch(error){
+    console.error("Error fetching user room from booking service:", error);
+    return null;
+}
+}
+
+export const fetchHotelRoomsFromAPI = async (hotelId) => {
+  try {
+    const response = await bookingApiAxiosInstance.get(`/api/get_rooms/${hotelId}`);
+    return response.data;
+  }
+  catch (error) {
+    console.error("Error fetching rooms from booking service:", error);
+    return [];
+  }
+}
 
 /** Fetch rooms for a specific hotel */
 export const fetchRoomsByHotel = async (hotelId) => {

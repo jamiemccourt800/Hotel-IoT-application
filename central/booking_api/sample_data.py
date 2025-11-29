@@ -15,29 +15,25 @@ def load_sample_data():
     DB_NAME = os.getenv("MONGO_DB", "hotel_db")
 
     uri = f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/{DB_NAME}?authSource=admin"
-
-    # Wait for Mongo to be ready
-    max_retries = 10
-    for attempt in range(max_retries):
+    # change to a while loop with a break   
+    while True:
         try:
             client = MongoClient(uri, serverSelectionTimeoutMS=5000)
             client.server_info()
             print("Connected to MongoDB")
             break
         except Exception:
-            print(f"MongoDB not ready, retrying ({attempt+1}/{max_retries})...")
+            print(f"MongoDB not ready, retrying...")
             time.sleep(5)
-    else:
-        raise Exception("Could not connect to MongoDB after multiple attempts")
 
     db = client[DB_NAME]
 
     # Sample data
     rooms_data = [
-        {"number": "101", "hotel_id": "hotel_01", "status": "available"},
-        {"number": "102", "hotel_id": "hotel_01", "status": "booked"},
-        {"number": "201", "hotel_id": "hotel_02", "status": "available"},
-        {"number": "202", "hotel_id": "hotel_02", "status": "booked"},
+        {"room_id": "101", "hotel_id": "hotel_01", "status": "available"},
+        {"room_id": "102", "hotel_id": "hotel_01", "status": "booked"},
+        {"room_id": "201", "hotel_id": "hotel_02", "status": "available"},
+        {"room_id": "202", "hotel_id": "hotel_02", "status": "booked"},
     ]
 
     bookings_data = [

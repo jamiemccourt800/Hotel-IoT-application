@@ -1,18 +1,33 @@
 // SliderPageTailwind.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LightControl from "./light-control";
 import TemperatureControl from "./temp-control";
 import Header from "../components/header/header";
+import { fetchUserRoom } from "../utils/hotelService";
+import { toast } from "react-toastify";
 
 const Home = () => {
   const [activePage, setActivePage] = useState(0);
+  const [disablePage, setDisablePage] = useState(false)
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    fetchUserRoom(user.user_id).then((data) => {
+      console.log("User Room Data:", data);
+    }).catch((err) => {
+      console.error("Cannot get Information for user with id U001:", err);
+      toast.error("Cannot fetch room details. Kindly check your credentials or contact your admin")
+    });
+  }
+, []);
+
   const hotelId = "hotel_01"; // Example hotel ID
   const roomId = 101; // Example room ID
 
   return (
     <>
     <Header/>
-    <div className="font-sans">
+    <div className="font-sans" >
       {/* Tabs */}
    <div className="flex justify-center mb-4">
   {/* Outer oval container */}

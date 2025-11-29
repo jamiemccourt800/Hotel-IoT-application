@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from pymongo import MongoClient
 import os, hashlib
@@ -16,6 +17,18 @@ uri = f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}?authSource
 client = MongoClient(uri)
 db = client[DB_NAME]
 app = FastAPI()
+
+origins = [
+    "*"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -57,7 +70,7 @@ def get_user_room(userid):
         raise HTTPException(status_code=404, detail="Room not found")
 
     return {
-        "number": room_info["number"],
+        "room_id": room_info["room_id"],
         "hotel_id": room_info["hotel_id"],
         "status": room_info["status"],
     }
@@ -80,7 +93,6 @@ def get_rooms(hotel_id: str):
     room_list = []
     for room in rooms:
         room_list.append({
-            "number": room["number"],
             "room_id": room["room_id"],
             "status": room["status"]
         })
