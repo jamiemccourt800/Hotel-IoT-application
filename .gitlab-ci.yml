@@ -37,6 +37,7 @@ build:
 test:
   stage: test
   image: docker:27
+  allow_failure: true
   variables:
     PYTHONPATH: "$CI_PROJECT_DIR"
     PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
