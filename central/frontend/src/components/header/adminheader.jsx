@@ -15,7 +15,7 @@ const AdminHeader = () => {
           </Link>
           <Link onClick={() => {
             localStorage.removeItem("user");
-            window.location.href = "/login";
+            window.location.href = "/";
           }} className="text-center ml-6">
             Logout
           </Link>

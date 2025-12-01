@@ -30,7 +30,7 @@ def load_sample_data():
 
     # Sample data
     rooms_data = [
-        {"room_id": "101", "hotel_id": "hotel_01", "status": "available"},
+        {"room_id": "101", "hotel_id": "hotel_01", "status": "booked"},
         {"room_id": "102", "hotel_id": "hotel_01", "status": "booked"},
         {"room_id": "201", "hotel_id": "hotel_02", "status": "available"},
         {"room_id": "202", "hotel_id": "hotel_02", "status": "booked"},
@@ -38,7 +38,7 @@ def load_sample_data():
 
     bookings_data = [
         {"user_id": "U001", "room_id": "101", "hotel_id": "hotel_01", "date_in": datetime(2025,10,18), "date_out": datetime(2025,10,20)},
-        {"user_id": "U002", "room_id": "101", "hotel_id": "hotel_01", "date_in": datetime(2025,10,22), "date_out": datetime(2025,10,25)},
+        {"user_id": "U002", "room_id": "102", "hotel_id": "hotel_01", "date_in": datetime(2025,10,22), "date_out": datetime(2025,10,25)},
     ]
 
     hotel_data = [

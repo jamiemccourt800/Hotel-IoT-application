@@ -24,21 +24,18 @@ const TemperatureControl = (hotelId, roomId) => {
   // Update room temperature
   const updateTemperature = async (value) => {
     setIsUpdating(true);
-    // try {
-    //   const hotelId = process.env.REACT_APP_HOTELID || "hotel_01";
-    //   const roomId = process.env.REACT_APP_ROOMID || 101;
+    try {
+      await axiosInstance.post(
+        `/send_command/${hotelId}/${roomId}/temperature/${value}`
+      );
 
-    //   await axiosInstance.post(
-    //     `/send_command/${hotelId}/${roomId}/temperature/${value}`
-    //   );
-
-    //   setTemperature(value);
-    //   toast.success(`Temperature set to ${value}°C`);
-    // } catch {
-    //   toast.error("Oops! There was an issue adjusting the temperature. Try again later!");
-    // } finally {
-    //   setIsUpdating(false);
-    // }
+      setTemperature(value);
+      toast.success(`Temperature set to ${value}°C`);
+    } catch {
+      toast.error("Oops! There was an issue adjusting the temperature. Try again later!");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   useEffect(() => {

@@ -7,7 +7,6 @@ import LightControl from "../../pages/light-control";
 import TemperatureControl from "../../pages/temp-control";
 import openDoor from "../../assets/open-door.png";
 import closedDoor from "../../assets/closed-door.png";
-import { axiosInstance } from "../../utils/axiosInstance";
 
 export default function RoomInfoDrawer({
   hotelId,
