@@ -11,11 +11,7 @@
 
 .App{
   height: 100vh;
-  background-color: #1A1A1A
-;
-    /* background: linear-gradient(135deg, #0A0A0A 0%, #121212 40%, #1F1F1F 50%, #00BFFF 100%);
-  color: #E0E0E0;
-  font-family: 'Segoe UI', sans-serif; */
+  background-color: rgb(140, 140, 237);
 }
 
 .menu-item{

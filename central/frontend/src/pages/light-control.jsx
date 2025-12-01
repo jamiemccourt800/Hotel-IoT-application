@@ -25,8 +25,6 @@ const LightControl = ({hotelId, roomId }) => {
   // Fetch current brightness
   const fetchBrightness = async () => {
     try {
-      const hotelId = process.env.REACT_APP_HOTELID || "hotel_01";
-      const roomId = process.env.REACT_APP_ROOMID || 101;
 
       const response = await axiosInstance.get(
         `/actuator/light/${hotelId}/${roomId}/brightness`
@@ -48,32 +46,32 @@ const LightControl = ({hotelId, roomId }) => {
     setIsLightOn(newStatus);
     const lightStatus = newStatus ? "on" : "off";
 
-    // try {
-    //   await axiosInstance.post(
-    //     `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/${lightStatus}`
-    //   );
-    //   toast.success(`Light turned ${lightStatus}`);
-    // } catch (error) {
-    //   console.error(error);
-    //   toast.error("Error changing light status");
-    //   setIsLightOn(!newStatus);
-    // }
+    try {
+      await axiosInstance.post(
+        `/actuator/light/${hotelId}/${roomId}/${lightStatus}`
+      );
+      toast.success(`Light turned ${lightStatus}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Error changing light status");
+      setIsLightOn(!newStatus);
+    }
   };
 
   // Adjust brightness
   const updateBrightness = async (value) => {
     setIsUpdating(true);
-    // try {
-    //   await axiosInstance.post(
-    //     `/actuator/light/${process.env.REACT_APP_HOTELID}/${process.env.REACT_APP_ROOMID}/brightness/${value}`
-    //   );
-    //   setBrightness(value);
-    //   toast.success(`Brightness set to ${value}%`);
-    // } catch {
-    //   toast.error("Oops! Could not update brightness. Try again.");
-    // } finally {
-    //   setIsUpdating(false);
-    // }
+    try {
+      await axiosInstance.post(
+        `/actuator/light/${hotelId}/${roomId}/brightness/${value}`
+      );
+      setBrightness(value);
+      toast.success(`Brightness set to ${value}%`);
+    } catch {
+      toast.error("Oops! Could not update brightness. Try again.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (

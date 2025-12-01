@@ -9,7 +9,7 @@ const Header = () => {
         <div className="text-white w-20">
           <Link onClick={() => {
             localStorage.removeItem("user");
-            window.location.href = "/login";
+            window.location.href = "/";
           }} className="text-center">
             Logout
           </Link>

@@ -5,6 +5,7 @@ import TemperatureControl from "./temp-control";
 import Header from "../components/header/header";
 import { fetchUserRoom } from "../utils/hotelService";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 
 const Home = () => {
   const [activePage, setActivePage] = useState(0);
@@ -14,10 +15,14 @@ const Home = () => {
     hotel_id: ""
   })
 
+  const navigate = useNavigate()
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
+    if(!user)
+    {
+      navigate('/')
+    }
     fetchUserRoom(user.user_id).then((data) => {
-      console.log(data)
       setRoomData(data)
     }).catch((err) => {
       console.error("Cannot get Information for user with id U001:", err);

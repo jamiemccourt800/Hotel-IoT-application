@@ -1,27 +1,31 @@
-import React from 'react'
-import Logo from './logo'
-import { Link } from 'react-router-dom'
+import React from 'react';
+import Logo from './logo';
+import { Link, useNavigate } from 'react-router-dom';
 
 const AdminHeader = () => {
-  return (
-       <div className="header flex flex-row justify-between shadow-[0_0_25px_rgba(0,0,0,0.9)]">
-        <Logo user={"Admin"}/>
-        <div className="text-white w-52 mx-10">
-          <Link
-            to="/admin/grafana"
-            className="text-center"
-           >
-            Metrics Dashboard
-          </Link>
-          <Link onClick={() => {
-            localStorage.removeItem("user");
-            window.location.href = "/login";
-          }} className="text-center ml-6">
-            Logout
-          </Link>
-        </div>
-      </div>
-  )
-}
+  const navigate = useNavigate();
 
-export default AdminHeader
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    navigate("/");
+  };
+
+  return (
+    <div className="header flex justify-between items-center shadow-md p-4 px-6 bg-gray-800 text-white">
+      <Logo user="Admin" />
+      <div className="flex items-center gap-6">
+        <Link to="/admin/dashboard" className="hover:underline">
+          Dashboard
+        </Link>
+        <Link to="/admin/grafana" className="hover:underline">
+          Metrics Dashboard
+        </Link>
+        <button onClick={handleLogout} className="hover:underline">
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default AdminHeader;
