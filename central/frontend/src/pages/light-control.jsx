@@ -11,7 +11,7 @@ const LightControl = ({hotelId, roomId }) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch current light status
-  const fetchLightStatus = async (h) => {
+  const fetchLightStatus = async () => {
     try {
       const response = await axiosInstance.get(
         `/actuator/light/${hotelId}/${roomId}/state`
@@ -23,7 +23,7 @@ const LightControl = ({hotelId, roomId }) => {
   };
 
   // Fetch current brightness
-  const fetchBrightness = async (hotelId, roomId) => {
+  const fetchBrightness = async () => {
     try {
 
       const response = await axiosInstance.get(

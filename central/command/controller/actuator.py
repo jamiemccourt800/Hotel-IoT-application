@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import time
 import uuid
@@ -104,3 +105,30 @@ async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str) 
         return None
 
     return None
+
+async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, hours: int = 6, step: int = 60):
+    end_ts = int(datetime.utcnow().timestamp())
+    start_ts = end_ts - hours * 3600
+
+    promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}"}}'
+
+    try:
+        resp = await http.get(
+            f"{VICTORIA_BASE_URL}/api/v1/query_range",
+            params={"query": promql, "start": start_ts, "end": end_ts, "step": step},
+            timeout=10
+        )
+        resp.raise_for_status()
+        payload = resp.json()
+
+        results = payload.get("data", {}).get("result", [])
+        if not results:
+            logger.warning(f"No data returned for metric {metric} (hotel={hotel_id}, room={room})")
+            return []
+
+        values = results[0].get("values", [])
+        return [{"timestamp": int(ts) * 1000, "value": float(val)} for ts, val in values]
+
+    except Exception as e:
+        logger.warning(f"Error fetching time series metric {metric}: {e}")
+        return []

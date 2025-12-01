@@ -3,11 +3,10 @@ import TemperatureSlider from "../components/temperature-slider/temp-slider";
 import {axiosInstance} from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 
-const TemperatureControl = (hotelId, roomId) => {
+const TemperatureControl = ({hotelId, roomId}) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [temperature, setTemperature] = useState(15);
 
-  // Fetch current room temperature
   const fetchTemperature = async () => {
     try {
       const response = await axiosInstance.get(
@@ -21,7 +20,6 @@ const TemperatureControl = (hotelId, roomId) => {
     }
   };
 
-  // Update room temperature
   const updateTemperature = async (value) => {
     setIsUpdating(true);
     try {

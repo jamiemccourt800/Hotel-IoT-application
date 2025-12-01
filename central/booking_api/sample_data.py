@@ -1,13 +1,16 @@
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import os
 import hashlib
+
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 def load_sample_data():
+    today = datetime.now()
+
     MONGO_USER = os.getenv("MONGO_USER", "admin")
     MONGO_PASS = os.getenv("MONGO_PASS", "1Password")
     MONGO_HOST = os.getenv("MONGO_HOST", "mongodb")
@@ -37,9 +40,35 @@ def load_sample_data():
     ]
 
     bookings_data = [
-        {"user_id": "U001", "room_id": "101", "hotel_id": "hotel_01", "date_in": datetime(2025,10,18), "date_out": datetime(2025,10,20)},
-        {"user_id": "U002", "room_id": "102", "hotel_id": "hotel_01", "date_in": datetime(2025,10,22), "date_out": datetime(2025,10,25)},
-    ]
+    {
+        "user_id": "U001",
+        "room_id": "101",
+        "hotel_id": "hotel_01",
+        "date_in": today - timedelta(days=1),
+        "date_out": today + timedelta(days=2),
+    },
+    {
+        "user_id": "U002",
+        "room_id": "102",
+        "hotel_id": "hotel_01",
+        "date_in": today + timedelta(days=2),
+        "date_out": today + timedelta(days=5),
+    },
+    {
+        "user_id": "U003",
+        "room_id": "201",
+        "hotel_id": "hotel_02",
+        "date_in": today - timedelta(days=5),
+        "date_out": today - timedelta(days=2),
+    },
+    {
+        "user_id": "U004",
+        "room_id": "202",
+        "hotel_id": "hotel_02",
+        "date_in": today - timedelta(days=1),
+        "date_out": today + timedelta(days=1),
+    },
+]
 
     hotel_data = [
         {"hotel_id": "hotel_01", "name": "Grand Plaza", "location": "Dublin"},

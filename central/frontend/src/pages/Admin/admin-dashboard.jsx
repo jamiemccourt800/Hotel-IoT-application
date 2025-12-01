@@ -19,17 +19,20 @@ const AdminDashboard = () => {
     setSelectedHotel(hotelId);
     const rooms = await fetchHotelRoomsFromAPI(hotelId);
     setRooms(rooms.rooms);
-  };
-
+  }
   return (
     <div>
-      <RoomInfoDrawer
+     {
+      openRoomInfo && selectedRoom && (
+         <RoomInfoDrawer
         hotelId={selectedHotel}
         roomNumber={selectedRoom?.room_id}
         occupancy= {selectedRoom?.status}
         openDrawer={openRoomInfo}
         setOpenDrawer={setOpenRoomInfo}
       />
+      )
+     }
       <div className="p-6 background">
         <Dropdown
           hotelList={hotels}
@@ -38,22 +41,25 @@ const AdminDashboard = () => {
         />
         {selectedHotel && (
           <div>
-            <h2 className="text-2xl font-semibold text-blue-700 mb-4 text-center">
+            <h2 className="text-4xl font-semibold text-white  mb-7 text-center">
               Rooms
             </h2>
-            <div className="grid grid-cols-3 gap-4">
-              {rooms.map((room) => (
-                <RoomTile
+            <div className="grid grid-cols-4 gap-4">
+              {rooms.map((room) => {
+                console.log(room)
+                return (
+                  <RoomTile
                   key={room.room_id}
                   room={room}
                   number={room.room_id}
-                  occupied={room.status}
+                  status={room.status}
                   roomInfoHandler={() => {
                     setSelectedRoom(room);
                     setOpenRoomInfo(true);
                   }}
                 />
-              ))}
+                )
+})}
             </div>
           </div>
         )}

@@ -8,7 +8,7 @@ import logging
 from kafka_producer import start_producer, stop_producer, send_message
 from config import config
 from controller.health import health_check
-from controller.actuator import set_light_action, get_metric
+from controller.actuator import set_light_action, get_metric, get_metric_timeseries
 import json, uuid, time
 import httpx
 
@@ -136,3 +136,10 @@ async def current_temperature(hotel_id: str, room_number: int):
         except Exception as e:
             logger.error(f"Error in current_temperature: {e}", exc_info=True)
             return {"status": "fail", "error": str(e)}
+
+
+@app.get("/api/metrics/timeseries")
+async def timeseries(hotel_id: str, room: str, metric: str, hours: int = 6):
+    async with httpx.AsyncClient() as client:
+        data = await get_metric_timeseries(client, metric, hotel_id, room, hours)
+    return data
