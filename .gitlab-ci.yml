@@ -102,10 +102,8 @@ test:
 
 push:
   stage: push
-  image: docker:20.10.23
-  services:
-    - name: docker:20.10.23-dind
-      command: ["--mtu=1400"]
+  image: docker:27
+
 
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
@@ -126,15 +124,62 @@ push:
       else
         export IMAGE_TAG="latest"
       fi
-      echo "Using IMAGE_TAG=$IMAGE_TAG"
+      echo "Using tag: $IMAGE_TAG"
 
   script:
+    # -----------------------------
+    # HOTEL IMAGES
+    # -----------------------------
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/hotel-temperature-sensor:$IMAGE_TAG \
+        -f hotel/dockerfiles/temperature-sensor.Dockerfile \
+        hotel/ \
+        --push
+
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/hotel-light-actuator:$IMAGE_TAG \
+        -f hotel/dockerfiles/light-actuator.Dockerfile \
+        hotel/ \
+        --push
+
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/hotel-alert-agent:$IMAGE_TAG \
+        -f hotel/dockerfiles/alert-agent.Dockerfile \
+        hotel/ \
+        --push
+
     - docker buildx build --platform linux/amd64,linux/arm64 \
         -t $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:$IMAGE_TAG \
-        -f hotel/services/mqtt-to-kafka/Dockerfile \
-        hotel/services/mqtt-to-kafka \
+        -f hotel/dockerfiles/mqtt-to-kafka.Dockerfile \
+        hotel/ \
         --push
-    # repeat for other services...
+
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:$IMAGE_TAG \
+        -f hotel/dockerfiles/kafka-to-mqtt.Dockerfile \
+        hotel/ \
+        --push
+
+    # -----------------------------
+    # CENTRAL IMAGES
+    # -----------------------------
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/central-command:$IMAGE_TAG \
+        -f central/dockerfiles/command.Dockerfile \
+        central/ \
+        --push
+
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/central-automation:$IMAGE_TAG \
+        -f central/dockerfiles/automation.Dockerfile \
+        central/ \
+        --push
+
+    - docker buildx build --platform linux/amd64,linux/arm64 \
+        -t $DOCKERHUB_USERNAME/central-app-frontend:$IMAGE_TAG \
+        -f central/dockerfiles/app-frontend.Dockerfile \
+        central/ \
+        --push
 
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
