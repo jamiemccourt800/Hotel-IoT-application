@@ -135,7 +135,7 @@ push:
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-temperature-sensor:$IMAGE_TAG \
       -f hotel/room1/temperature-sensor/Dockerfile \
-      hotel/room1/temperature-sensor/ \
+      hotel/room1/ \
       --push
 
   - |
@@ -143,7 +143,7 @@ push:
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-light-actuator:$IMAGE_TAG \
       -f hotel/room1/light-actuator/Dockerfile \
-      hotel/room1/light-actuator/ \
+      hotel/room1/ \
       --push
 
   - |
@@ -151,7 +151,7 @@ push:
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-alert-agent:$IMAGE_TAG \
       -f hotel/room1/alert-agent/Dockerfile \
-      hotel/room1/alert-agent/ \
+      hotel/room1/ \
       --push
 
   - |
