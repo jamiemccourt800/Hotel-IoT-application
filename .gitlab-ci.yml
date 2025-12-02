@@ -134,40 +134,40 @@ push:
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-temperature-sensor:$IMAGE_TAG \
-      -f hotel/dockerfiles/temperature-sensor.Dockerfile \
-      hotel/ \
+      -f hotel/room1/temperature-sensor/Dockerfile \
+      hotel/room1/temperature-sensor/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-light-actuator:$IMAGE_TAG \
-      -f hotel/dockerfiles/light-actuator.Dockerfile \
-      hotel/ \
+      -f hotel/room1/light-actuator/Dockerfile \
+      hotel/room1/light-actuator/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-alert-agent:$IMAGE_TAG \
-      -f hotel/dockerfiles/alert-agent.Dockerfile \
-      hotel/ \
+      -f hotel/room1/alert-agent/Dockerfile \
+      hotel/room1/alert-agent/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-mqtt-to-kafka:$IMAGE_TAG \
-      -f hotel/dockerfiles/mqtt-to-kafka.Dockerfile \
-      hotel/ \
+      -f hotel/MQTT/dockerfile \
+      hotel/MQTT/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/hotel-kafka-to-mqtt:$IMAGE_TAG \
-      -f hotel/dockerfiles/kafka-to-mqtt.Dockerfile \
-      hotel/ \
+      -f hotel/MQTT/dockerfile \
+      hotel/MQTT/ \
       --push
 
   # -----------------------------
@@ -177,24 +177,24 @@ push:
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/central-command:$IMAGE_TAG \
-      -f central/dockerfiles/command.Dockerfile \
-      central/ \
+      -f central/command/Dockerfile \
+      central/command/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/central-automation:$IMAGE_TAG \
-      -f central/dockerfiles/automation.Dockerfile \
-      central/ \
+      -f central/automation/Dockerfile \
+      central/automation/ \
       --push
 
   - |
     docker buildx build \
       --platform linux/amd64,linux/arm64 \
       -t $DOCKERHUB_USERNAME/central-app-frontend:$IMAGE_TAG \
-      -f central/dockerfiles/app-frontend.Dockerfile \
-      central/ \
+      -f central/frontend/Dockerfile \
+      central/frontend/ \
       --push
 
   rules:
