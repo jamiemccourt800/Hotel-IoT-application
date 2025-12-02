@@ -17,6 +17,7 @@ before_script:
   - chown -R "$USER":"$USER" . || true
   - docker version
   - docker info
+  - echo "precedence ::ffff:0:0/96  100" >> /etc/gai.conf
 
 stages:
   - build
