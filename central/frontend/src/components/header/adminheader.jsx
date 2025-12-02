@@ -1,4 +1,3 @@
-import React from 'react';
 import Logo from './logo';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -16,9 +15,6 @@ const AdminHeader = () => {
       <div className="flex items-center gap-6">
         <Link to="/admin/dashboard" className="hover:underline">
           Dashboard
-        </Link>
-        <Link to="/admin/grafana" className="hover:underline">
-          Metrics Dashboard
         </Link>
         <button onClick={handleLogout} className="hover:underline">
           Logout
