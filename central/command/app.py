@@ -1,3 +1,4 @@
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, BackgroundTasks
@@ -14,6 +15,13 @@ import httpx
 
 logger = logging.getLogger("app")
 logger.setLevel(logging.INFO)
+
+SERVICE_NAME = "command"
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format=f'%(asctime)s - {SERVICE_NAME} - %(levelname)s - %(message)s',
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
