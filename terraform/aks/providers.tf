@@ -23,8 +23,12 @@ terraform {
       version = "0.9.0"
     }
     kubernetes = {
-      source = "hashicorp/kubernetes"
+      source  = "hashicorp/kubernetes"
       version = "2.36.0"
+    }
+    helm = {
+      source = "hashicorp/helm"
+      version = "3.1.1"
     }
   }
 }
@@ -48,4 +52,20 @@ provider "kustomization" {
   kubeconfig_raw = azurerm_kubernetes_cluster.k8s.kube_config_raw
 
   # kubeconfig_incluster = true
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = local.kubeconfig_host
+    client_certificate     = local.client_certificate
+    client_key             = local.client_key
+    cluster_ca_certificate = local.cluster_ca_certificate
+  }
+}
+
+provider "kubernetes" {
+  host = local.kubeconfig_host
+  client_certificate = local.client_certificate
+  client_key         = local.client_key
+  cluster_ca_certificate = local.cluster_ca_certificate
 }

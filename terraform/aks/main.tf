@@ -29,6 +29,9 @@ resource "azurerm_kubernetes_cluster" "k8s" {
     name       = "agentpool"
     vm_size    = "Standard_D2_v2"
     node_count = var.node_count
+    enable_auto_scaling = true
+    min_count = 1
+    max_count = 5
   }
   linux_profile {
     admin_username = var.username
@@ -43,102 +46,200 @@ resource "azurerm_kubernetes_cluster" "k8s" {
   }
 }
 
-provider "kubernetes" {
-  host = azurerm_kubernetes_cluster.k8s.kube_config.0.host
+resource "kubernetes_namespace" "argocd" {
+  metadata {
+    name = "argocd"
+  }
+}
 
+locals {
+  kubeconfig_host        = azurerm_kubernetes_cluster.k8s.kube_config.0.host
   client_certificate     = base64decode(azurerm_kubernetes_cluster.k8s.kube_config.0.client_certificate)
   client_key             = base64decode(azurerm_kubernetes_cluster.k8s.kube_config.0.client_key)
   cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.k8s.kube_config.0.cluster_ca_certificate)
 }
 
-resource "kubernetes_secret" "azure_file_credentials" {
+resource "kubernetes_config_map" "argocd_cm" {
+    metadata {
+        name      = "argocd-cm"
+        namespace = kubernetes_namespace.argocd.metadata[0].name
+      labels = {
+        "app.kubernetes.io/name" = "argocd-cm"
+        "app.kubernetes.io/part-of" = "argocd"
+      }
+    }
+
+    data = {
+        "kustomize.buildOptions" = "--enable-helm"
+    }
+    depends_on = [kubernetes_namespace.argocd]
+}
+
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  version    = "v8.2.6"
+
+  values = [
+    yamlencode({
+      crds = {
+        install = true
+      }
+
+      server = {
+        service = {
+          type = "LoadBalancer"
+        }
+      }
+    })
+  ]
+
+  depends_on = [
+    azurerm_kubernetes_cluster.k8s,
+    kubernetes_namespace.argocd,
+    kubernetes_config_map.argocd_cm
+  ]
+}
+
+
+data "kubernetes_service_v1" "argocd_server" {
   metadata {
-    name      = "azure-storage-secret"
-    namespace = "app-microservices"
+    name      = "argocd-server"
+    namespace = kubernetes_namespace.argocd.metadata[0].name
   }
 
-  data = {
-    # use data for base64 encoded values
-    azurestorageaccountname = var.storage_account_name
-    azurestorageaccountkey  = var.storage_account_key
+  depends_on = [helm_release.argocd]
+}
+
+data "kubernetes_secret_v1" "argocd_initial_admin" {
+  metadata {
+    name      = "argocd-initial-admin-secret"
+    namespace = "argocd"
   }
 
-  type = "Opaque"
+  depends_on = [helm_release.argocd]
+}
+
+locals {
+  argocd_admin_password = (
+    data.kubernetes_secret_v1.argocd_initial_admin.data["password"]
+  )
+}
+
+resource "kubernetes_manifest" "argocd_cluster_crds_app" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "cluster-crds"
+      namespace = "argocd"
+      annotations = {
+        "argocd.argoproj.io/sync-options" = "ServerSideApply=true"
+      }
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = "https://gitlab.comp.dkit.ie/D00271292/devops-project-gitops.git"
+        targetRevision = "main"
+        path           = "infra/crds"
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "argocd"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = false
+          selfHeal = false
+        }
+        syncOptions = ["ServerSideApply=true"]
+      }
+    }
+  }
 
   depends_on = [
-    azurerm_kubernetes_cluster.k8s
+    kubernetes_namespace.argocd
   ]
 }
 
-
-# Modify the kustomization_build data source
-data "kustomization_build" "manifests_crds" {
-  path = "${path.module}/../../deployment/crds"
-  kustomize_options {
-    enable_helm = true
-    helm_path = "helm"
+resource "kubernetes_manifest" "argocd_infra_app" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "infra"
+      namespace = "argocd"
+      finalizers = [
+        "resources-finalizer.argocd.argoproj.io"
+      ]
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = "https://gitlab.comp.dkit.ie/D00271292/devops-project-gitops.git"
+        targetRevision = "main"
+        path           = "infra"
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "infra"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = [
+          "CreateNamespace=true"
+        ]
+      }
+    }
   }
-}
 
-resource "kustomization_resource" "pc0" {
-  for_each = data.kustomization_build.manifests_crds.ids_prio[0]
-  manifest = data.kustomization_build.manifests_crds.manifests[each.value]
-  # depends_on = [null_resource.kustomization_patch]
-}
-
-resource "kustomization_resource" "pc1" {
-  for_each   = data.kustomization_build.manifests_crds.ids_prio[1]
-  manifest   = data.kustomization_build.manifests_crds.manifests[each.value]
-  depends_on = [kustomization_resource.pc0]
-}
-
-resource "kustomization_resource" "pc2" {
-  for_each   = data.kustomization_build.manifests_crds.ids_prio[2]
-  manifest   = data.kustomization_build.manifests_crds.manifests[each.value]
-  depends_on = [kustomization_resource.pc1]
-}
-
-# Modify the kustomization_build data source
-data "kustomization_build" "manifests" {
-  path = "${path.module}/../../deployment/prod"
-  kustomize_options {
-    enable_helm = true
-    helm_path = "helm"
-  }
-}
-
-resource "kustomization_resource" "p0" {
-  for_each = data.kustomization_build.manifests.ids_prio[0]
-  manifest = data.kustomization_build.manifests.manifests[each.value]
   depends_on = [
-    data.kustomization_build.manifests_crds,
-    kustomization_resource.pc0,
-    kustomization_resource.pc1,
-    kustomization_resource.pc2
+    kubernetes_manifest.argocd_cluster_crds_app
   ]
 }
 
-resource "kustomization_resource" "p1" {
-  for_each   = data.kustomization_build.manifests.ids_prio[1]
-  manifest   = data.kustomization_build.manifests.manifests[each.value]
-  depends_on = [
-    kustomization_resource.p0,
-    data.kustomization_build.manifests_crds,
-    kustomization_resource.pc0,
-    kustomization_resource.pc1,
-    kustomization_resource.pc2
-  ]
-}
+resource "kubernetes_manifest" "argocd_iot_hotel_chain_app" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "iot-hotel-chain"
+      namespace = "argocd"
+      finalizers = [
+        "resources-finalizer.argocd.argoproj.io"
+      ]
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = "https://gitlab.comp.dkit.ie/D00271292/devops-project-gitops.git"
+        targetRevision = "main"
+        path           = "environments/prod"
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "prod"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = [
+          "CreateNamespace=true"
+        ]
+      }
+    }
+  }
 
-resource "kustomization_resource" "p2" {
-  for_each   = data.kustomization_build.manifests.ids_prio[2]
-  manifest   = data.kustomization_build.manifests.manifests[each.value]
   depends_on = [
-    kustomization_resource.p1,
-    data.kustomization_build.manifests_crds,
-    kustomization_resource.pc0,
-    kustomization_resource.pc1,
-    kustomization_resource.pc2
+    kubernetes_manifest.argocd_infra_app
   ]
 }
 

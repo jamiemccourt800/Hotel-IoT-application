@@ -31,7 +31,13 @@ output "cluster_username" {
   sensitive = true
 }
 
-# output "storage_account_key" {
-#   value     = azurerm_storage_account.storage.primary_access_key
-#   sensitive = true
-# }
+output "argocd_server_public_ip" {
+  description = "Public IP of the Argo CD server"
+  value       = data.kubernetes_service_v1.argocd_server.status[0].load_balancer[0].ingress[0].ip
+}
+
+output "argocd_admin_password" {
+  description = "Initial admin password for Argo CD"
+  value     = local.argocd_admin_password
+  sensitive = true
+}
