@@ -58,9 +58,8 @@ services:
       INITIAL_BRIGHTNESS: 100
       # Unleash Feature Flags
       UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_CLIENT_KEY: ${UNLEASH_CLIENT_KEY:-}
+      UNLEASH_INSTANCE_ID: ${UNLEASH_INSTANCE_ID:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-room-simulator}
-      UNLEASH_ENVIRONMENT: ${UNLEASH_ENVIRONMENT:-production}
     depends_on:
       - mosquitto
     networks:

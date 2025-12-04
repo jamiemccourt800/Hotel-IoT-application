@@ -60,9 +60,8 @@ services:
       DEADBAND: 0.5
       # Unleash Feature Flags
       UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_CLIENT_KEY: ${UNLEASH_CLIENT_KEY:-}
+      UNLEASH_INSTANCE_ID: ${UNLEASH_INSTANCE_ID:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-room-simulator}
-      UNLEASH_ENVIRONMENT: ${UNLEASH_ENVIRONMENT:-development}
     depends_on:
       - mosquitto
     networks:
@@ -85,9 +84,8 @@ services:
       INITIAL_BRIGHTNESS: 100
       # Unleash Feature Flags
       UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_CLIENT_KEY: ${UNLEASH_CLIENT_KEY:-}
+      UNLEASH_INSTANCE_ID: ${UNLEASH_INSTANCE_ID:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-room-simulator}
-      UNLEASH_ENVIRONMENT: ${UNLEASH_ENVIRONMENT:-development}
     depends_on:
       - mosquitto
     networks:
@@ -146,9 +144,8 @@ services:
       DEADBAND: 2.0
       # Unleash Feature Flags
       UNLEASH_URL: ${UNLEASH_URL:-}
-      UNLEASH_CLIENT_KEY: ${UNLEASH_CLIENT_KEY:-}
+      UNLEASH_INSTANCE_ID: ${UNLEASH_INSTANCE_ID:-}
       UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-room-simulator}
-      UNLEASH_ENVIRONMENT: ${UNLEASH_ENVIRONMENT:-development}
     depends_on:
       - mosquitto
     networks:

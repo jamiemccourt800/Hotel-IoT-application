@@ -17,31 +17,28 @@ class FeatureFlags:
         self.logger = get_logger("feature-flags", device_config)
         self.client: Optional[UnleashClient] = None
         
-        # Read Unleash configuration from environment
+        # Read Unleash configuration from environment (matching lab pattern)
         unleash_url = os.getenv('UNLEASH_URL')
+        unleash_instance_id = os.getenv('UNLEASH_INSTANCE_ID')
         unleash_app_name = os.getenv('UNLEASH_APP_NAME', 'room-simulator')
-        unleash_environment = os.getenv('UNLEASH_ENVIRONMENT', 'development')
-        unleash_client_key = os.getenv('UNLEASH_CLIENT_KEY', '*:default.secret')
         
-        # Only initialize if Unleash URL is provided
-        if unleash_url:
+        # Only initialize if both URL and instance_id are provided
+        if unleash_url and unleash_instance_id:
             try:
                 self.client = UnleashClient(
                     url=unleash_url,
                     app_name=unleash_app_name,
-                    environment=unleash_environment,
-                    custom_headers={'Authorization': unleash_client_key}
+                    instance_id=unleash_instance_id
                 )
                 self.client.initialize_client()
                 self.logger.info('unleash-initialized', 'feature flags enabled',
-                               url=unleash_url, app_name=unleash_app_name,
-                               environment=unleash_environment)
+                               url=unleash_url, app_name=unleash_app_name)
             except Exception as e:
                 self.logger.error('unleash-init-failed', f'failed to initialize: {e}',
                                 error=str(e))
                 self.client = None
         else:
-            self.logger.info('unleash-disabled', 'no UNLEASH_URL - feature flags disabled')
+            self.logger.info('unleash-disabled', 'no UNLEASH_URL/INSTANCE_ID - feature flags disabled')
     
     def is_enabled(self, flag_name: str, default: bool = True) -> bool:
         """
