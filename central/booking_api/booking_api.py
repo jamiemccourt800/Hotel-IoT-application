@@ -78,6 +78,7 @@ def get_user_room(userid):
 
     return {
         "room_id": room["room_id"],
+        "room_type": room["room_type"],
         "hotel_id": room["hotel_id"],
         "status": room["status"],
     }
@@ -101,7 +102,6 @@ def get_rooms(hotel_id: str):
     print(rooms_cursor)
     for room in rooms_cursor:
         room_status = room["status"]
-
 
         active_booking = db.bookings.find_one({
             "room_id": room["room_id"],

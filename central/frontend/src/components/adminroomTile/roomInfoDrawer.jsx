@@ -93,9 +93,9 @@ const RoomInfoDrawer = ({
           >
             <LightControl hotelId={hotelId} roomId={roomNumber} />
             <TemperatureControl hotelId={hotelId} roomId={roomNumber} />
-              <MetricChart hotelId={hotelId} room={roomNumber} metric={"state_brightness"} metric_title={"Brightness"}/>
+              <MetricChart hotelId={hotelId} room={roomNumber} metric={"light-state_brightness"} metric_title={"Brightness"}/>
               <MetricChart hotelId={hotelId} room={roomNumber} metric={"temperature_temperatureC"} metric_title={"Temperature"}/>
-               <MetricChart hotelId={hotelId} room={roomNumber} metric={"state_on"} metric_title={"Light Status"}/>
+               <MetricChart hotelId={hotelId} room={roomNumber} metric={"light-status_mode"} metric_title={"Light Status"}/>
               
           </Box>
         </Box>

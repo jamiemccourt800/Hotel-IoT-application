@@ -4,6 +4,7 @@ import LightBulb from "../components/lightbulb/light-bulb";
 import {axiosInstance} from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 import BrightnessSlider from "../components/brightness-slide/brightness-slider";
+import { data } from "react-router-dom";
 
 const LightControl = ({hotelId, roomId }) => {
   const [isLightOn, setIsLightOn] = useState(false);
@@ -17,6 +18,7 @@ const LightControl = ({hotelId, roomId }) => {
         `/actuator/light/${hotelId}/${roomId}/state`
       );
       setIsLightOn(Number(response.data.state) === 1);
+      console.log(response.data)
     } catch {
       toast.error("Error fetching light status for current room");
     }

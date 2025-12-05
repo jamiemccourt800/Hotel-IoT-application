@@ -86,7 +86,7 @@ async def set_light_action(hotel_id: str, room_number: int, action: str, value: 
 async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str) -> float | None:
     """Generic function to query VictoriaMetrics for a single value metric."""
     
-    promql = f'last_over_time({metric}{{hotel_id="{hotel_id}",room="{room}"}}[1m])'
+    promql = f'last_over_time({metric}{{hotel_id="{hotel_id}",room="{room}", sensor="state_on"}}[1m])'
     try:
         resp = await http.get(f"{VICTORIA_BASE_URL}/api/v1/query", params={"query": promql}, timeout=10)                
         resp.raise_for_status()

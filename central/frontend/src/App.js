@@ -1,6 +1,7 @@
 import './App.css';
 import Home from './pages/home';
 import { ToastContainer } from 'react-toastify';
+import { useEffect } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -13,8 +14,14 @@ import ProtectedRoute from './pages/Auth/ProtectedRoute';
 import Unauthorized from './pages/Auth/Unauthorized';
 import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
 import AdminLayout from './pages/Admin/AdminLayout';
+import { axiosInstance } from './utils/axiosInstance';
 
 function App() {
+
+  // useEffect(() => {
+  //   axiosInstance
+  // }, []);
+
   return (
     <div className="App">
       <BrowserRouter>

@@ -273,19 +273,22 @@ services:
   #     MONGO_INITDB_ROOT_PASSWORD: 1Password!
   #     MONGO_INITDB_DATABASE: bookings
 
+
   mongodb:
     image: mongo:7.0
     container_name: booking_db
     restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: 1Password
     ports:
       - "27017:27017"
     volumes:
       - mongodb-data:/data/db
     command: ["--bind_ip_all"]
     networks:
-      iot-net:
-        aliases:
-          - mongodb
+      - iot-net
+
   
   app-frontend:
     build: ./frontend
@@ -295,9 +298,10 @@ services:
     volumes:
       - ./frontend:/app
     environment:
-      REACT_APP_HOTELID: hotel_01
-      REACT_APP_ROOMID: 101
-    command: ["npm", "start"]
+      REACT_APP_COMMAND_SERVICE_URL: http://localhost:5000
+      REACT_APP_BOOKING_SERVICE_URL: http://localhost:3003
+      REACT_APP_GRAFANA_URL: http://localhost:3000
+    command: npm start
 
 
 volumes:
