@@ -7,3 +7,4 @@ requests
 paho-mqtt
 kafka-python
 ulid-py
+UnleashClient==5.11.2
