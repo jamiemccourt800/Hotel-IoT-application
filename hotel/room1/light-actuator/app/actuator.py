@@ -8,7 +8,7 @@ import time
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from common import HotelMQTTClient, LightTelemetry, MessageTags, get_logger, now_ms
+from common import HotelMQTTClient, LightTelemetry, MessageTags, get_logger, now_ms, FeatureFlags
 from light_controller import LightController, ControlOutput
 
 class LightActuator:
@@ -23,6 +23,7 @@ class LightActuator:
         # Initialize components
         self.mqtt_client = HotelMQTTClient(mqtt_config, "light-actuator", device_config)
         self.light_controller = LightController(light_controller_config)
+        self.feature_flags = FeatureFlags(device_config)
         
         # External control flag - disables local adaptive control when FastAPI commands are used
         self.external_control_mode = False
@@ -70,6 +71,7 @@ class LightActuator:
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping actuator')
         finally:
+            self.feature_flags.shutdown()
             client.loop_stop()
             client.disconnect()
             
@@ -93,6 +95,16 @@ class LightActuator:
         """Process light command from FastAPI (external control)"""
         fields = command.get("fields", {})
         correlation_id = command.get("correlationId")
+        
+        # Check if external control is enabled via feature flag
+        if not self.feature_flags.is_enabled('external_control', default=True):
+            self.logger.info('external-control-disabled', 'ignoring command - external_control flag is off',
+                           correlation_id=correlation_id)
+            self._send_ack("disabled", "external_control feature flag is disabled", correlation_id)
+            return
+        
+        self.logger.debug('flag-checked', 'external_control=True - processing command',
+                         flag='external_control', enabled=True)
         
         try:
             # Enable external control mode when command received
@@ -165,6 +177,13 @@ class LightActuator:
         
         while True:
             try:
+                # Check if local control is enabled via feature flag
+                if not self.feature_flags.is_enabled('local_control', default=True):
+                    self.logger.debug('flag-checked', 'local_control=False - skipping local control',
+                                     flag='local_control', enabled=False)
+                    time.sleep(self.light_controller_config.control_interval)
+                    continue
+                
                 # Skip local control if external commands are being used
                 if self.external_control_mode:
                     time.sleep(self.light_controller_config.control_interval)
@@ -213,6 +232,15 @@ class LightActuator:
                 
     def _send_ack(self, status: str, error: str, correlation_id: str):
         """Send acknowledgment message"""
+        # Check if ACK publishing is enabled via feature flag
+        if not self.feature_flags.is_enabled('ack_publishing', default=True):
+            self.logger.debug('flag-checked', 'ack_publishing=False - skipping ACK',
+                             flag='ack_publishing', enabled=False, correlation_id=correlation_id)
+            return
+        
+        self.logger.debug('flag-checked', 'ack_publishing=True - sending ACK',
+                         flag='ack_publishing', enabled=True)
+        
         # Publish to actuator-specific ACK topic
         ack_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/light-actuator/ack"
         ack_msg = {
