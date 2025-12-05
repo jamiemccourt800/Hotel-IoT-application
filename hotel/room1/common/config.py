@@ -1,6 +1,29 @@
-"""
-Environment-based configuration management with type safety.
+"""Environment-based configuration management with type safety.
 Eliminates scattered os.getenv() calls across services and provides validation.
+
+Usage:
+------
+from common import DeviceConfig, MQTTConfig, TemperatureConfig
+
+# Load device configuration from environment
+device_config = DeviceConfig.from_env('temperature-actuator')
+print(f"Device: {device_config.hotel_id}/{device_config.room}/{device_config.sensor}")
+
+# Load MQTT configuration
+mqtt_config = MQTTConfig.from_env()
+client.connect(mqtt_config.broker, mqtt_config.port)
+
+# Load service-specific configuration
+temp_config = TemperatureConfig.from_env()
+target = temp_config.target_temp  # Defaults to 21.0°C if not set
+
+Exported Classes:
+-----------------
+- DeviceConfig:       Hotel/room/sensor identification
+- MQTTConfig:         MQTT broker connection settings
+- TemperatureConfig:  Temperature sensor/actuator settings
+- LightConfig:        Light sensor/actuator settings
+- HumidityConfig:     Humidity sensor/actuator settings
 """
 import os
 from dataclasses import dataclass

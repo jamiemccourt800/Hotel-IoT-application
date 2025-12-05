@@ -1,6 +1,35 @@
-"""
-Feature flag integration with GitLab Unleash for controlled feature releases.
+"""Feature flag integration with GitLab Unleash for controlled feature releases.
 Allows runtime control of simulator features without redeployment.
+
+Usage:
+------
+from common import FeatureFlags
+
+# Initialize with device config (for logging context)
+flags = FeatureFlags(device_config)
+
+# Check if a feature is enabled (defaults to True if Unleash unavailable)
+if flags.is_enabled('external_control'):
+    process_external_command()
+
+if flags.is_enabled('ack_publishing', default=False):
+    send_acknowledgment()
+
+# Always cleanup in finally block
+try:
+    # ... service logic ...
+finally:
+    flags.shutdown()
+
+Environment Variables Required:
+-------------------------------
+UNLEASH_URL:         GitLab Unleash API endpoint
+UNLEASH_INSTANCE_ID: Authentication instance ID (from GitLab)
+UNLEASH_APP_NAME:    Application identifier (e.g., 'actuator')
+
+Exported:
+---------
+- FeatureFlags: Main class for feature flag evaluation
 """
 import os
 from typing import Optional

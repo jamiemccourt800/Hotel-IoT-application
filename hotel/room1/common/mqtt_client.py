@@ -1,6 +1,27 @@
-"""
-Standardized MQTT client with connection handling and retries.
+"""Standardized MQTT client with connection handling and retries.
 Eliminates duplicated MQTT setup code across services (150+ lines per service).
+
+Usage:
+------
+from common import HotelMQTTClient, MQTTConfig, DeviceConfig
+
+# Initialize client
+mqtt_config = MQTTConfig.from_env()
+device_config = DeviceConfig.from_env('sensor-name')
+client = HotelMQTTClient(mqtt_config, 'service-name', device_config)
+
+# Connect with automatic retries
+client.connect_with_retries(max_attempts=30)
+
+# Setup last will (optional)
+client.setup_last_will('hotel/status', {'status': 'offline'})
+
+# Publish telemetry
+client.publish_telemetry('hotel/temperature', telemetry_payload)
+
+Exported:
+---------
+- HotelMQTTClient: Wrapper with retry logic and standardized publishing
 """
 import time
 import json

@@ -1,6 +1,35 @@
-"""
-Centralized message schemas for type safety and consistency.
+"""Centralized message schemas for type safety and consistency.
 Ensures all services use identical message formats for MQTT communication.
+
+Usage:
+------
+from common import TemperatureTelemetry, MessageTags
+
+# Create message tags
+tags = MessageTags(hotel_id='hotel_01', room=101, sensor='temp-sensor')
+
+# Create telemetry message
+telemetry = TemperatureTelemetry(
+    tags=tags,
+    fields={'temperature_c': 22.5, 'humidity_pct': 45}
+)
+
+# Convert to MQTT payload
+payload = telemetry.to_dict()
+client.publish('hotel/temperature', json.dumps(payload))
+
+# Parse received message
+received = TemperatureTelemetry.from_dict(json.loads(mqtt_payload))
+
+Exported Classes:
+-----------------
+- MessageTags:          Standard device identification
+- BaseMessage:          Base class for all messages
+- TemperatureTelemetry: Temperature sensor messages
+- LightTelemetry:       Light sensor/actuator messages
+- HumidityTelemetry:    Humidity sensor messages
+- AlertMessage:         Alert/status messages
+- CommandMessage:       Actuator command messages
 """
 import time
 from dataclasses import dataclass

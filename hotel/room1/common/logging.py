@@ -1,6 +1,25 @@
-"""
-Unified structured logging system.
+"""Unified structured logging system.
 Replaces duplicate log() functions across all services with consistent formatting.
+
+Usage:
+------
+from common import get_logger
+
+# Create logger with device context
+logger = get_logger('temperature-actuator', device_config)
+
+# Structured logging with consistent format
+logger.info('startup', 'actuator initialized', target_temp=21.0)
+logger.warning('threshold-exceeded', 'temperature above limit', temp=32.5)
+logger.error('mqtt-publish-failed', 'failed to send telemetry', error=str(e))
+
+# Logs appear as:
+# 2025-12-05T10:30:45.123Z | INFO  | temperature-actuator | hotel_01/101/temp-act | event=startup | msg="actuator initialized" | target_temp=21.0
+
+Exported:
+---------
+- HotelLogger:  Main logger class with structured output
+- get_logger(): Factory function (recommended for consistent device context)
 """
 import time
 from typing import Dict, Any, Optional
