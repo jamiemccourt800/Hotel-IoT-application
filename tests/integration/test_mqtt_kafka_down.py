@@ -1,6 +1,14 @@
 import pytest
 import os
+import sys
 from importlib import reload
+from pathlib import Path
+
+# Ensure tests.integration is importable
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import tests.integration.test_mqtt_to_kafka_bridge as bridge_test
 
 @pytest.mark.integration
