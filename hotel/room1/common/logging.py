@@ -55,6 +55,10 @@ class HotelLogger:
             
         print(' | '.join(base), flush=True)
         
+    def debug(self, event: str, msg: str, **fields):
+        """Log debug level message"""
+        self.log('DEBUG', event, msg, **fields)
+        
     def info(self, event: str, msg: str, **fields):
         """Log info level message"""
         self.log('INFO', event, msg, **fields)
