@@ -80,7 +80,7 @@ test:
     - docker compose -p test-int -f tests/docker-compose.test.hotel.yml up -d
     - docker compose -p test-int -f tests/docker-compose.test.central.yml ps
     - echo "Waiting for Mosquitto to accept connections..."
-    - docker compose -p test-int -f tests/docker-compose.test.central.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
+    - docker compose -p test-int -f tests/docker-compose.test.hotel.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
     - echo "Running integration tests *inside* Compose network"
     - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
         
