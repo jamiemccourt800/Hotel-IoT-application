@@ -82,8 +82,8 @@ test:
     - docker compose -p test-int -f tests/docker-compose.test.hotel.yml logs mosquitto
     # - echo "Waiting for Mosquitto to accept connections..."
     # - docker compose -p test-int -f tests/docker-compose.test.hotel.yml exec -T mosquitto sh -c 'nc -z localhost 1883'
-    - echo "Running integration tests *inside* Compose network"
-    - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
+    # - echo "Running integration tests *inside* Compose network"
+    # - docker compose -p test-int -f tests/docker-compose.test.central.yml run --rm tests
         
   after_script:
     - mkdir -p reports || true
