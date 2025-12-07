@@ -4,7 +4,6 @@ import LightBulb from "../components/lightbulb/light-bulb";
 import {axiosInstance} from "../utils/axiosInstance";
 import { toast } from "react-toastify";
 import BrightnessSlider from "../components/brightness-slide/brightness-slider";
-import { data } from "react-router-dom";
 
 const LightControl = ({hotelId, roomId }) => {
   const [isLightOn, setIsLightOn] = useState(false);

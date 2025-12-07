@@ -31,7 +31,7 @@ export default function MetricChart({ hotelId, room, metric, hours = 6, metric_t
   }, [hotelId, room, metric, hours]);
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow h-64 w-full my-10">
+    <div className="p-4 bg-white rounded-lg shadow h-72 w-3/4 my-10 mx-auto">
       <h2 className="text-lg font-semibold mb-2">{metric_title} Over Time</h2>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>

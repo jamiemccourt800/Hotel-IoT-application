@@ -83,10 +83,13 @@ async def set_light_action(hotel_id: str, room_number: int, action: str, value: 
         logger.error(f"Failed to enqueue light action for hotel {hotel_id}, room {room_number}: {e}")
         return {"status": "error", "error": str(e)}
 
-async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str) -> float | None:
+async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str, sensor: str = None) -> float | None:
     """Generic function to query VictoriaMetrics for a single value metric."""
     
-    promql = f'last_over_time({metric}{{hotel_id="{hotel_id}",room="{room}", sensor="state_on"}}[1m])'
+    if sensor:
+        promql =  f'last_over_time({metric}{{hotel_id="{hotel_id}", room="{room}", sensor="{sensor}"}}[1m])'
+    else:
+        promql = f'last_over_time({metric}{{hotel_id="{hotel_id}", room="{room}"}}[1m])'
     try:
         resp = await http.get(f"{VICTORIA_BASE_URL}/api/v1/query", params={"query": promql}, timeout=10)                
         resp.raise_for_status()
@@ -106,11 +109,14 @@ async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str) 
 
     return None
 
-async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, hours: int = 6, step: int = 60):
+async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, sensor: str = None, hours: int = 6, step: int = 60):
     end_ts = int(datetime.utcnow().timestamp())
     start_ts = end_ts - hours * 3600
 
-    promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}"}}'
+    if sensor: 
+        promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}", sensor="{sensor}"}}'
+    else:
+        promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}"}}'
 
     try:
         resp = await http.get(

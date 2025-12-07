@@ -116,8 +116,21 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
 async def light_brightness(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
-            metric = "state_brightness"
-            state = await get_metric(http, metric, hotel_id, str(room_number))
+            metric = "light-status_current_brightness"
+            sensor = "light-actuator"
+            state = await get_metric(http, metric, hotel_id, str(room_number), sensor=sensor)
+            return {"status": "success", "state": state}
+        except Exception as e:
+            logger.error(f"Error in light_state: {e}", exc_info=True)
+            return {"status": "fail", "error": str(e)}
+
+@app.get("/actuator/humidity/{hotel_id}/{room_number}/state")
+async def light_brightness(hotel_id: str, room_number: int):
+    async with httpx.AsyncClient() as http:
+        try:
+            metric = "humidity_humidityPercent"
+            sensor = "humidity-sensor"
+            state = await get_metric(http, metric, hotel_id, str(room_number), sensor=sensor)
             return {"status": "success", "state": state}
         except Exception as e:
             logger.error(f"Error in light_state: {e}", exc_info=True)
@@ -127,8 +140,9 @@ async def light_brightness(hotel_id: str, room_number: int):
 async def light_state(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
-            metric = "state_on"
-            state = await get_metric(http,metric, hotel_id, str(room_number))
+            metric = "light-status_mode"
+            sensor= "light-actuator"
+            state = await get_metric(http,metric, hotel_id, str(room_number), sensor)
             return {"status": "success", "state": state}
         except Exception as e:
             logger.error(f"Error in light_state: {e}", exc_info=True)

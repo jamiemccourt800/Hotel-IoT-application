@@ -14,13 +14,8 @@ import ProtectedRoute from './pages/Auth/ProtectedRoute';
 import Unauthorized from './pages/Auth/Unauthorized';
 import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
 import AdminLayout from './pages/Admin/AdminLayout';
-import { axiosInstance } from './utils/axiosInstance';
 
 function App() {
-
-  // useEffect(() => {
-  //   axiosInstance
-  // }, []);
 
   return (
     <div className="App">
