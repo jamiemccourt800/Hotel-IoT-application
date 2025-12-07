@@ -7,7 +7,7 @@ export default function HumidityControl({hotelId, roomId}) {
 
   useEffect(() => {
     axiosInstance.get(`/actuator/humidity/${hotelId}/${roomId}/state`)
-    .then((res) => console.log(res.data?.state))
+    .then((res) => setHumidity(res.data?.state))
   }, [])
 
   const getHumidityColor = () => {

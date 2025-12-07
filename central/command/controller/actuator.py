@@ -114,7 +114,7 @@ async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: 
     start_ts = end_ts - hours * 3600
 
     if sensor: 
-        promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}", sensor="{sensor}"}}'
+        promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}",sensor="{sensor}"}}'
     else:
         promql = f'{metric}{{hotel_id="{hotel_id}",room="{room}"}}'
 

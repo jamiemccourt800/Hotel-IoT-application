@@ -116,9 +116,9 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
 async def light_brightness(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
-            metric = "light-status_current_brightness"
-            sensor = "light-actuator"
-            state = await get_metric(http, metric, hotel_id, str(room_number), sensor=sensor)
+            metric = "light-state_brightness"
+            sensor = "light-sensor"
+            state = await get_metric(http, metric, hotel_id, str(room_number), sensor)
             return {"status": "success", "state": state}
         except Exception as e:
             logger.error(f"Error in light_state: {e}", exc_info=True)

@@ -17,7 +17,6 @@ const Home = () => {
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
     fetchUserRoom(user.user_id).then((data) => {
-      console.log(data)
       setRoomData(data)
     }).catch((err) => {
       console.error("Cannot get Information for user with id U001:", err);
