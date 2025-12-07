@@ -1,6 +1,7 @@
 import './App.css';
 import Home from './pages/home';
 import { ToastContainer } from 'react-toastify';
+import { useEffect } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -15,6 +16,7 @@ import GrafanaDashboard from './pages/Admin/GrafanaDashboard/GrafanaDashboard';
 import AdminLayout from './pages/Admin/AdminLayout';
 
 function App() {
+
   return (
     <div className="App">
       <BrowserRouter>
