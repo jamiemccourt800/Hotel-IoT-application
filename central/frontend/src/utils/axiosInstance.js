@@ -9,8 +9,7 @@ const axiosInstance = axios.create({
 });
 
 const bookingApiAxiosInstance = axios.create({
-    // baseURL: process.env.REACT_APP_BOOKING_SERVICE_URL,
-    baseURL: 'http://localhost:8000',
+    baseURL: process.env.REACT_APP_BOOKING_API_URL || '/api/booking',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
