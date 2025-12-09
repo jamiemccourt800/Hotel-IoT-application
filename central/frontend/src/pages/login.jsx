@@ -16,7 +16,7 @@ const loginHandler = async (e) => {
     const user = await login(username, password);
     localStorage.setItem("user", JSON.stringify(user));
     setTimeout(() => {
-      if (user.role === "admin") navigate("/admin/dashboard");
+      if (user && user.role === "admin") navigate("/admin/dashboard");
       else navigate("/home");
     }, 0);
 

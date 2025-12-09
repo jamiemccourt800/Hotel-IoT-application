@@ -46,7 +46,6 @@ const AdminDashboard = () => {
             </h2>
             <div className="grid grid-cols-4 gap-4">
               {rooms.map((room) => {
-                console.log(room)
                 return (
                   <RoomTile
                   key={room.room_id}
