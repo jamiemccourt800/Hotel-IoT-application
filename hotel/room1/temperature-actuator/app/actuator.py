@@ -8,7 +8,7 @@ import time
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-from common import HotelMQTTClient, TemperatureTelemetry, MessageTags, get_logger, now_ms
+from common import HotelMQTTClient, TemperatureTelemetry, MessageTags, get_logger, now_ms, FeatureFlags
 from thermostat import ThermostatController, ControlOutput
 
 class TemperatureActuator:
@@ -23,6 +23,7 @@ class TemperatureActuator:
         # Initialize components
         self.mqtt_client = HotelMQTTClient(mqtt_config, "temperature-actuator", device_config)
         self.thermostat = ThermostatController(thermostat_config)
+        self.feature_flags = FeatureFlags(device_config)
         
         # External control flag - disables local PID loop when FastAPI commands are used
         self.external_control_mode = False
@@ -70,6 +71,7 @@ class TemperatureActuator:
         except KeyboardInterrupt:
             self.logger.info('shutdown', 'stopping actuator')
         finally:
+            self.feature_flags.shutdown()
             client.loop_stop()
             client.disconnect()
             
@@ -93,6 +95,16 @@ class TemperatureActuator:
         """Process thermostat command from FastAPI (external control)"""
         fields = command.get("fields", {})
         correlation_id = command.get("correlationId")
+        
+        # Check if external control is enabled via feature flag
+        if not self.feature_flags.is_enabled('external_control', default=True):
+            self.logger.info('external-control-disabled', 'ignoring command - external_control flag is off',
+                           correlation_id=correlation_id)
+            self._send_ack("disabled", "external_control feature flag is disabled", correlation_id)
+            return
+        
+        self.logger.debug('flag-checked', 'external_control=True - processing command',
+                         flag='external_control', enabled=True)
         
         try:
             # Enable external control mode when command received
@@ -150,6 +162,13 @@ class TemperatureActuator:
         
         while True:
             try:
+                # Check if local control is enabled via feature flag
+                if not self.feature_flags.is_enabled('local_control', default=True):
+                    self.logger.debug('flag-checked', 'local_control=False - skipping local control',
+                                     flag='local_control', enabled=False)
+                    time.sleep(self.thermostat_config.control_interval)
+                    continue
+                
                 # Skip local control if external commands are being used
                 if self.external_control_mode:
                     time.sleep(self.thermostat_config.control_interval)
@@ -201,6 +220,15 @@ class TemperatureActuator:
                 
     def _send_ack(self, status: str, error: str, correlation_id: str):
         """Send acknowledgment message"""
+        # Check if ACK publishing is enabled via feature flag
+        if not self.feature_flags.is_enabled('ack_publishing', default=True):
+            self.logger.debug('flag-checked', 'ack_publishing=False - skipping ACK',
+                             flag='ack_publishing', enabled=False, correlation_id=correlation_id)
+            return
+        
+        self.logger.debug('flag-checked', 'ack_publishing=True - sending ACK',
+                         flag='ack_publishing', enabled=True)
+        
         # Publish to actuator-specific ACK topic (not thermostat)
         ack_topic = f"{self.device_config.hotel_id}/{self.device_config.room}/temperature-actuator/ack"
         ack_msg = {

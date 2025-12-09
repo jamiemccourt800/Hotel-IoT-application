@@ -1,6 +1,11 @@
 FROM python:3.12-slim
 WORKDIR /app
 
+# Install build dependencies for UnleashClient (mmhash3)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 COPY humidity-actuator/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

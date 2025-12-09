@@ -1,6 +1,31 @@
-"""
-Common utility functions used across services.
+"""Common utility functions used across services.
 Eliminates duplicate helper functions and provides consistent implementations.
+
+Usage:
+------
+from common import now_ms, clamp_0_100, env_bool, validate_temperature_range
+
+# Timestamps
+timestamp = now_ms()  # Milliseconds since epoch for telemetry
+
+# Value clamping
+brightness = clamp_0_100(user_input)  # Ensures 0-100 range
+
+# Environment variable parsing with defaults
+debug_mode = env_bool('DEBUG_MODE', default=False)
+max_retries = env_int('MAX_RETRIES', default=3)
+target_temp = env_float('TARGET_TEMP', default=21.0)
+
+# Validation
+if validate_temperature_range(temp):
+    process_temperature(temp)
+
+Exported Functions:
+------------------
+- now_ms(), now_s():                  Timestamp utilities
+- clamp_0_100(), device_key():        Value manipulation
+- env_bool(), env_int(), env_float(): Environment parsing
+- validate_*_range():                 Input validation
 """
 import time
 from typing import Union

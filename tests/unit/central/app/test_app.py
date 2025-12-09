@@ -2,7 +2,19 @@ import pytest
 from fastapi.testclient import TestClient
 import importlib.util
 import pathlib
-from tests.conftest import load_module_from_path
+import sys
+from pathlib import Path
+
+# Directly define load_module_from_path to avoid import conflicts with UnleashClient's test suite
+def load_module_from_path(mod_name: str, file_path: pathlib.Path):
+    """Load a module from a given file path."""
+    spec = importlib.util.spec_from_file_location(mod_name, file_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load module {mod_name} from {file_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[mod_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 # Dynamically load FastAPI app
 

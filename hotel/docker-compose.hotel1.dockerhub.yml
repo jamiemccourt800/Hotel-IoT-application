@@ -56,6 +56,10 @@ services:
       KEEPALIVE: 60
       INITIAL_ON: "true"
       INITIAL_BRIGHTNESS: 100
+      # Unleash Feature Flags
+      UNLEASH_URL: ${UNLEASH_URL:-}
+      UNLEASH_INSTANCE_ID: ${UNLEASH_INSTANCE_ID:-}
+      UNLEASH_APP_NAME: ${UNLEASH_APP_NAME:-actuator}
     depends_on:
       - mosquitto
     networks:
