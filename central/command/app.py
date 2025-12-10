@@ -1,6 +1,5 @@
 import sys
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,6 +9,7 @@ from kafka_producer import start_producer, stop_producer, send_message
 from config import config
 from controller.health import health_check
 from controller.actuator import set_light_action, get_metric, get_metric_timeseries
+from controller.featureflag import FeatureFlagController
 import json, uuid, time
 import httpx
 
@@ -115,15 +115,15 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
 @app.post("/actuator/humidity/{hotel_id}/{room_number}/set_target/{value}")
 async def set_humidity_target_endpoint(hotel_id: str, room_number: int, value: float):
     try:
-        from controller.actuator import set_humidity_target
+        from controller.actuator import set_humidity_target        
         return await set_humidity_target(hotel_id, room_number, value)
     except Exception as e:
         logger.error(f"Error in set_humidity_target_endpoint: {e}", exc_info=True)
-        return {"status": "fail", "error": str(e)}  
+        return {"status": "fail", "error": str(e)}
     
 
 @app.get("/actuator/light/{hotel_id}/{room_number}/brightness")
-async def light_brightness(hotel_id: str, room_number: int):
+async def set_light_brightness(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
             metric = "light-state_brightness"
@@ -135,7 +135,7 @@ async def light_brightness(hotel_id: str, room_number: int):
             return {"status": "fail", "error": str(e)}
 
 @app.get("/actuator/humidity/{hotel_id}/{room_number}/state")
-async def light_brightness(hotel_id: str, room_number: int):
+async def humidity(hotel_id: str, room_number: int):
     async with httpx.AsyncClient() as http:
         try:
             metric = "humidity_humidityPercent"
@@ -171,8 +171,20 @@ async def current_temperature(hotel_id: str, room_number: int):
 
 
 @app.get("/api/metrics/timeseries")
-async def timeseries(hotel_id: str, room: str, metric: str, hours: int = 6):
+async def timeseries(hotel_id: str, room: str, metric: str, sensor: str = None, hours: int = 6):
     async with httpx.AsyncClient() as client:
-        data = await get_metric_timeseries(client, metric, hotel_id, room, hours)
+        data = await get_metric_timeseries(client, metric, hotel_id, room,sensor, hours)
     return data
 
+@app.get("/api/feature-flags")
+async def feature_flags():
+    ff_controller = FeatureFlagController(app)
+    try:
+        flags = {
+            "humidity_control": ff_controller.is_enabled("humidity_control", default=False),
+        }
+        return {"feature_flags": flags}
+    except Exception as e:
+        logger.exception("Error in feature_flags")
+        return {"status": "fail", "error": str(e)}
+    

@@ -36,9 +36,13 @@ const LightControl = ({hotelId, roomId }) => {
   };
 
   useEffect(() => {
+    if(hotelId && roomId)
+    {
+        
     fetchLightStatus();
     fetchBrightness();
-  }, []);
+    }
+  }, [hotelId, roomId]);
 
   // Toggle light on/off
   const toggleLightStatus = async () => {

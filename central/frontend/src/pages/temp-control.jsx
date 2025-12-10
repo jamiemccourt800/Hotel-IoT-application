@@ -37,8 +37,10 @@ const TemperatureControl = ({hotelId, roomId}) => {
   };
 
   useEffect(() => {
-    fetchTemperature();
-  }, []);
+    if(hotelId && roomId){
+          fetchTemperature();
+    }
+  }, [hotelId, roomId]);
 
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl shadow-xl p-10 max-w-md mx-auto bg-white">
