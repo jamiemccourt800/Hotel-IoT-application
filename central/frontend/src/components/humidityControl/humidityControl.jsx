@@ -26,10 +26,10 @@ export default function HumidityControl({hotelId, roomId}) {
     <div style={{
       backgroundColor: "#1A1A1A",
       borderRadius: "16px",
-      padding: "24px",
+      padding: "50px",
       border: "1px solid rgba(255, 255, 255, 0.1)",
-      maxWidth: "1200px",
-      margin: "0 auto",
+      maxWidth: "800px",
+      margin: "20px auto",
     }}>
       {/* Header */}
       <div style={{

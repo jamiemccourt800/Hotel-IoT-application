@@ -83,6 +83,33 @@ async def set_light_action(hotel_id: str, room_number: int, action: str, value: 
         logger.error(f"Failed to enqueue light action for hotel {hotel_id}, room {room_number}: {e}")
         return {"status": "error", "error": str(e)}
 
+async def set_humidity_target(hotel_id: str, room_number: int, value: float):
+    """
+    Send a command to set target humidity for a specific room.
+
+    Produces a Kafka message to topic:
+      actuators.{hotel_id}.{room_number}.humidity-actuator.cmd
+    Args:
+        hotel_id (str): The ID of the hotel.
+        room_number (int): The room number.
+        value (float): The target humidity value.
+    Returns:
+        dict: A dictionary indicating success or failure.
+    """
+    try:
+        topic = f"actuators.{hotel_id}.{room_number}.humidity-actuator.cmd"
+        message = {
+            "command": "set_target_humidity",
+            "value": value,
+            "timestamp": int(time.time() * 1000)
+        }
+        await send_message(topic, json.dumps(message).encode('utf-8'))
+        logger.info(f"Sent humidity target command to {topic}: {message}")
+        return {"status": "success", "message": f"Command sent to {topic}"}
+    except Exception as e:
+        logger.error(f"Error in set_humidity_target: {e}", exc_info=True)
+        return {"status": "fail", "error": str(e)}
+    
 async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str, sensor: str = None) -> float | None:
     """Generic function to query VictoriaMetrics for a single value metric."""
     

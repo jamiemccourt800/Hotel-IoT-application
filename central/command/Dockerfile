@@ -10,6 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP=app.py \
     FLASK_ENV=production
 
+ENV UNLEASH_URL=https://gitlab.comp.dkit.ie/api/v4/feature_flags/unleash/2212 \
+    UNLEASH_APP_NAME=central-command \
+    UNLEASH_INSTANCE_ID=glffct-X6fa8vgxkQcssohsCwqN
+
 # Install system dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

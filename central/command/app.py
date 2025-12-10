@@ -79,7 +79,8 @@ async def send_command(
 @app.post("/actuator/light/{hotel_id}/{room_number}/on")
 async def light_on(hotel_id: str, room_number: int):
     try:
-        return await set_light_action(hotel_id, room_number, "on")
+        return await set_light_action(hotel_id, 
+                                      room_number, "on")
     except Exception as e:
         logger.error(f"Error in light_on: {e}", exc_info=True)
         return {"status": "fail", "error": str(e)}
@@ -111,6 +112,15 @@ async def light_brightness(hotel_id: str, room_number: int, value: int):
         logger.error(f"Error in light_brightness: {e}", exc_info=True)
         return {"status": "fail", "error": str(e)}
 
+@app.post("/actuator/humidity/{hotel_id}/{room_number}/set_target/{value}")
+async def set_humidity_target_endpoint(hotel_id: str, room_number: int, value: float):
+    try:
+        from controller.actuator import set_humidity_target
+        return await set_humidity_target(hotel_id, room_number, value)
+    except Exception as e:
+        logger.error(f"Error in set_humidity_target_endpoint: {e}", exc_info=True)
+        return {"status": "fail", "error": str(e)}  
+    
 
 @app.get("/actuator/light/{hotel_id}/{room_number}/brightness")
 async def light_brightness(hotel_id: str, room_number: int):
@@ -165,3 +175,4 @@ async def timeseries(hotel_id: str, room: str, metric: str, hours: int = 6):
     async with httpx.AsyncClient() as client:
         data = await get_metric_timeseries(client, metric, hotel_id, room, hours)
     return data
+
