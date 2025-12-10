@@ -7,7 +7,7 @@ import TemperatureControl from "../../pages/temp-control";
 import openDoor from "../../assets/open-door.png";
 import closedDoor from "../../assets/closed-door.png";
 import MetricChart from "../MetricChart/metricChart";
-import HumidifierControl from "../humidityControl/humidityControl";
+import HumidityControl from "../../pages/humidityControl";
 
 const RoomInfoDrawer = ({
   hotelId,
@@ -292,7 +292,7 @@ const RoomInfoDrawer = ({
         {/* Humidity Tab */}
         {activeTab === "humidity" && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            <HumidifierControl hotelId={hotelId} roomId={roomNumber} />
+            <HumidityControl hotelId={hotelId} roomId={roomNumber} />
             <MetricChart
               hotelId={hotelId}
               room={roomNumber}

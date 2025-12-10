@@ -110,7 +110,7 @@ async def set_humidity_target(hotel_id: str, room_number: int, value: float):
         logger.error(f"Error in set_humidity_target: {e}", exc_info=True)
         return {"status": "fail", "error": str(e)}
     
-async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str, sensor: str = None) -> float | None:
+async def get_metric(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, sensor: str = None) -> float | None:
     """Generic function to query VictoriaMetrics for a single value metric."""
     
     if sensor:
@@ -136,7 +136,7 @@ async def get_metric(http: httpx.Client, metric: str, hotel_id: str, room: str, 
 
     return None
 
-async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, sensor: str = None, hours: int = 6, step: int = 60):
+async def get_metric_timeseries(http: httpx.AsyncClient, metric: str, hotel_id: str, room: str, sensor: str = None, hours: int = 6, step: int = 300):
     end_ts = int(datetime.utcnow().timestamp())
     start_ts = end_ts - hours * 3600
 

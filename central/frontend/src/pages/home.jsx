@@ -5,7 +5,7 @@ import Header from "../components/header/header";
 import { fetchUserRoom } from "../utils/hotelService";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
-import HumidityControl from "../components/humidityControl/humidityControl";
+import HumidityControl from "./humidityControl";
 
 const Home = () => {
   const [activePage, setActivePage] = useState(0);
@@ -22,17 +22,18 @@ const Home = () => {
       navigate("/");
       return;
     }
-    // fetchUserRoom(user.user_id)
-    //   .then((data) => {
-    //     setRoomData(data);
-    //   })
-    //   .catch((err) => {
-    //     console.error("Cannot get Information for user:", err);
-    //     toast.error(
-    //       "Cannot fetch room details. Kindly check your credentials or contact your admin"
-    //     );
-    //   });
-  }, [navigate]);
+    fetchUserRoom(user.user_id)
+      .then((data) => {
+        setRoomData(data);
+        console.log("Room Data:", data);
+      })
+      .catch((err) => {
+        console.error("Cannot get Information for user:", err);
+        toast.error(
+          "Cannot fetch room details. Kindly check your credentials or contact your admin"
+        );
+      });
+  }, []);
 
   return (
     <>
