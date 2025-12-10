@@ -4,7 +4,7 @@ import axios from 'axios';
 const runtimeConfig = window.RUNTIME_CONFIG || {};
 
 const axiosInstance = axios.create({
-  baseURL: runtimeConfig.REACT_APP_COMMAND_SERVICE_URL || process.env.REACT_APP_C|| 'http://localhost:5000',
+  baseURL: process.env.REACT_APP_COMMAND_SERVICE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -12,7 +12,7 @@ const axiosInstance = axios.create({
 });
 
 const bookingApiAxiosInstance = axios.create({
-  baseURL: runtimeConfig.REACT_APP_COMMAND_SERVICE_URL || process.env.REACT_APP_BOOKING_SERVICE_URL || 'http://localhost:3003',
+  baseURL: process.env.REACT_APP_BOOKING_SERVICE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -20,6 +20,6 @@ const bookingApiAxiosInstance = axios.create({
 });
 
 
-const grafanaUrl = runtimeConfig.REACT_APP_COMMAND_SERVICE_URL || process.env.REACT_APP_GRAFANA_URL || 'http://localhost:3000';
+const grafanaUrl = process.env.REACT_APP_GRAFANA_URL
 
 export { axiosInstance, bookingApiAxiosInstance, grafanaUrl };
