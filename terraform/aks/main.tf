@@ -27,11 +27,8 @@ resource "azurerm_kubernetes_cluster" "k8s" {
 
   default_node_pool {
     name       = "agentpool"
-    vm_size    = "Standard_D2_v2"
+    vm_size    = "Standard_F2s_v2"
     node_count = var.node_count
-    enable_auto_scaling = true
-    min_count = 1
-    max_count = 5
   }
   linux_profile {
     admin_username = var.username
@@ -43,6 +40,11 @@ resource "azurerm_kubernetes_cluster" "k8s" {
   network_profile {
     network_plugin    = "kubenet"
     load_balancer_sku = "standard"
+  }
+  lifecycle {
+    ignore_changes = [
+      default_node_pool[0],
+    ]
   }
 }
 
@@ -59,21 +61,24 @@ locals {
   cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.k8s.kube_config.0.cluster_ca_certificate)
 }
 
-resource "kubernetes_config_map" "argocd_cm" {
-    metadata {
-        name      = "argocd-cm"
-        namespace = kubernetes_namespace.argocd.metadata[0].name
-      labels = {
-        "app.kubernetes.io/name" = "argocd-cm"
-        "app.kubernetes.io/part-of" = "argocd"
-      }
-    }
-
-    data = {
-        "kustomize.buildOptions" = "--enable-helm"
-    }
-    depends_on = [kubernetes_namespace.argocd]
-}
+# resource "kubernetes_config_map" "argocd_cm" {
+#     metadata {
+#         name      = "argocd-cm"
+#         namespace = kubernetes_namespace.argocd.metadata[0].name
+#       labels = {
+#         "app.kubernetes.io/name" = "argocd-cm"
+#         "app.kubernetes.io/part-of" = "argocd"
+#       }
+#     }
+#
+#     data = {
+#         "kustomize.buildOptions" = "--enable-helm"
+#     }
+#     depends_on = [
+#       kubernetes_namespace.argocd,
+#       helm_release.argocd
+#     ]
+# }
 
 resource "helm_release" "argocd" {
   name       = "argocd"
@@ -93,13 +98,35 @@ resource "helm_release" "argocd" {
           type = "LoadBalancer"
         }
       }
+
+      configs = {
+        cm = {
+          # becomes data.kustomize.buildOptions in argocd-cm
+          "kustomize.buildOptions" = "--enable-helm"
+          "accounts.image-updater" = "apiKey"
+        }
+
+        rbac = {
+          # this becomes data.policy.csv in argocd-rbac-cm
+          "policy.csv" = <<-EOT
+            p, role:image-updater, applications, get, *, allow
+            p, role:image-updater, applications, list, *, allow
+            p, role:image-updater, applications, update, *, allow
+            p, role:image-updater, applications, sync, *, allow
+
+            g, image-updater, role:image-updater
+          EOT
+
+          # optional, but chart likes having scopes defined
+          "scopes" = "[groups, email]"
+        }
+      }
     })
   ]
 
   depends_on = [
     azurerm_kubernetes_cluster.k8s,
-    kubernetes_namespace.argocd,
-    kubernetes_config_map.argocd_cm
+    kubernetes_namespace.argocd
   ]
 }
 
@@ -161,48 +188,52 @@ resource "kubernetes_manifest" "argocd_cluster_crds_app" {
   }
 
   depends_on = [
-    kubernetes_namespace.argocd
+    kubernetes_namespace.argocd,
+    data.kubernetes_service_v1.argocd_server,
+    helm_release.argocd,
+    azurerm_kubernetes_cluster.k8s,
   ]
 }
 
-resource "kubernetes_manifest" "argocd_infra_app" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
-    metadata = {
-      name      = "infra"
-      namespace = "argocd"
-      finalizers = [
-        "resources-finalizer.argocd.argoproj.io"
-      ]
-    }
-    spec = {
-      project = "default"
-      source = {
-        repoURL        = "https://gitlab.comp.dkit.ie/D00271292/devops-project-gitops.git"
-        targetRevision = "main"
-        path           = "infra"
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "infra"
-      }
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-        syncOptions = [
-          "CreateNamespace=true"
-        ]
-      }
-    }
-  }
-
-  depends_on = [
-    kubernetes_manifest.argocd_cluster_crds_app
-  ]
-}
+# resource "kubernetes_manifest" "argocd_infra_app" {
+#   manifest = {
+#     apiVersion = "argoproj.io/v1alpha1"
+#     kind       = "Application"
+#     metadata = {
+#       name      = "infra"
+#       namespace = "argocd"
+#       finalizers = [
+#         "resources-finalizer.argocd.argoproj.io"
+#       ]
+#     }
+#     spec = {
+#       project = "default"
+#       source = {
+#         repoURL        = "https://gitlab.comp.dkit.ie/D00271292/devops-project-gitops.git"
+#         targetRevision = "main"
+#         path           = "infra"
+#       }
+#       destination = {
+#         server    = "https://kubernetes.default.svc"
+#         namespace = "infra"
+#       }
+#       syncPolicy = {
+#         automated = {
+#           prune    = true
+#           selfHeal = true
+#         }
+#         syncOptions = [
+#           "CreateNamespace=true"
+#         ]
+#       }
+#     }
+#   }
+#
+#   depends_on = [
+#     kubernetes_manifest.argocd_cluster_crds_app,
+#     helm_release.argocd
+#   ]
+# }
 
 resource "kubernetes_manifest" "argocd_iot_hotel_chain_app" {
   manifest = {
@@ -214,6 +245,11 @@ resource "kubernetes_manifest" "argocd_iot_hotel_chain_app" {
       finalizers = [
         "resources-finalizer.argocd.argoproj.io"
       ]
+      annotations = {
+        "argocd-image-updater.argoproj.io/image-list"        = "command=dkitdevops/central-command:latest,app-frontend=dkitdevops/central-app-frontend:latest,hotel-kafka-to-mqtt=dkitdevops/hotel-kafka-to-mqtt:latest,hotel-mqtt-to-kafka=dkitdevops/hotel-mqtt-to-kafka:latest,temperature-sensor=dkitdevops/hotel-temperature-sensor:latest,light-actuator=dkitdevops/hotel-light-actuator:latest,alert-agent=dkitdevops/hotel-alert-agent:latest,booking-api=dkitdevops/booking_api:v1.0"
+        "argocd-image-updater.argoproj.io/update-strategy"   = "digest"
+        "argocd-image-updater.argoproj.io/write-back-method" = "argocd"
+      }
     }
     spec = {
       project = "default"
@@ -239,9 +275,24 @@ resource "kubernetes_manifest" "argocd_iot_hotel_chain_app" {
   }
 
   depends_on = [
-    kubernetes_manifest.argocd_infra_app
+    kubernetes_manifest.argocd_cluster_crds_app,
+    helm_release.argocd
   ]
 }
+
+resource "kubernetes_secret" "argocd_image_updater" {
+  metadata {
+    name      = "argocd-image-updater-secret"
+    namespace = "argocd"
+  }
+
+  data = {
+    "argocd.token" = var.argocd_image_updater_token
+  }
+
+  type = "Opaque"
+}
+
 
 resource "local_file" "kubeconfig_file" {
   # This should be the full path where you want the file saved

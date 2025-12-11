@@ -1,6 +1,6 @@
 variable "resource_group_location" {
   type        = string
-  default     = "northeurope"
+  default     = "westeurope"
   description = "Location of the resource group."
 }
 
@@ -48,4 +48,36 @@ variable "storage_account_name" {
 variable "storage_account_key" {
   type        = string
   description = "The storage account key for the cluster."
+}
+
+variable "grafana_disk_id" {
+  type        = string
+  description = "The Managed Disk ID for Grafana data disk."
+  default     = null
+}
+
+variable "mongo_data_pv" {
+  type        = string
+  description = "The Managed Disk ID for MongoDB data disk."
+  default     = null
+}
+
+
+variable "vm_data_pv" {
+  type        = string
+  description = "The Managed Disk ID for MongoDB data disk."
+  default     = null
+}
+
+
+variable "mosquito_data_pv" {
+  type        = string
+  description = "The Managed Disk ID for MongoDB data disk."
+  default     = null
+}
+
+variable "argocd_image_updater_token" {
+  type = string
+  description = "The token for ArgoCD Image Updater to access private container registry."
+  default = ""
 }
