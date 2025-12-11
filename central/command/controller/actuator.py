@@ -22,7 +22,7 @@ async def set_temperature(hotel_id: str, room_number: int, temperature: float):
     """
     # Create Kafka topic similar to your MQTT topic structure
     # Use dot-delimited Kafka topic naming (slashes are not valid in Kafka topics)
-    thermostat_topic = f"actuators.{hotel_id}.{room_number}.thermostat"
+    thermostat_topic = f"actuators.{hotel_id}.{room_number}.temperature-actuator.cmd"
 
     # Build message payload
     message = {
